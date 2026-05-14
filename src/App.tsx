@@ -383,7 +383,7 @@ function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' |
   const isFuture = mode === 'future';
 
   return (
-    <div className={`cartoon-border p-4 sm:p-5 sticky top-8 ${isFuture ? 'bg-blue-50' : 'bg-cartoon-card'}`}>
+    <div className={`cartoon-border p-3 sm:p-4 ${isFuture ? 'bg-blue-50' : 'bg-cartoon-card'}`}>
       <AnimatePresence>
         {errorToast && (
           <motion.div
@@ -397,13 +397,13 @@ function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' |
         )}
       </AnimatePresence>
 
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-black flex items-center gap-2">
+      <div className="flex justify-between items-center mb-3">
+        <h1 className="text-2xl font-black flex items-center gap-2">
           {isFuture ? <span>🚀 加未來行程</span> : <span>✏️ 寫日記</span>}
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-2.5">
+      <form onSubmit={handleSubmit} className="space-y-1.5">
         <div>
           <label className="block font-bold mb-0.5 text-sm text-gray-700">
             {isFuture ? "打算做咩呀？" : "你做過咩呀？"}
@@ -737,13 +737,19 @@ export default function App() {
         const normalEvents: typeof data = [];
         const sfEvents: Record<string, any> = {};
         const newShifts: Record<string, 'D' | 'N'> = {};
+        const duplicateEvents: any[] = [];
         
         data.forEach((ev: any) => {
           if (ev.summary === '[Shift]-D' || ev.summary === '[Shift]-N') {
             const dateStr = ev.start?.date || ev.start?.dateTime?.split('T')[0];
             if (dateStr) {
-               sfEvents[dateStr] = ev;
-               newShifts[dateStr] = ev.summary === '[Shift]-D' ? 'D' : 'N';
+               if (sfEvents[dateStr]) {
+                 // Found a duplicate on the same date, mark it for deletion
+                 duplicateEvents.push(ev);
+               } else {
+                 sfEvents[dateStr] = ev;
+                 newShifts[dateStr] = ev.summary === '[Shift]-D' ? 'D' : 'N';
+               }
             }
           } else {
             normalEvents.push(ev);
@@ -752,40 +758,23 @@ export default function App() {
         
         setShiftEvents(sfEvents);
         
-        const prevShifts = JSON.parse(localStorage.getItem('diary_shifts') || '{}');
-        const unsynced = Object.entries(prevShifts).filter(([dateStr]) => !newShifts[dateStr]);
+        // Google Calendar is the source of truth, completely replace local shifts
+        setShifts(newShifts);
+        setEvents(normalEvents);
         
-        // Merge with existing local shifts, preferring server shifts
-        setShifts({ ...prevShifts, ...newShifts } as typeof newShifts);
-        
-        if (unsynced.length > 0) {
-           const syncShifts = async () => {
-             for (const [dateStr, type] of unsynced) {
-               const dt = new Date(dateStr);
-               const endDt = new Date(dt);
-               endDt.setDate(endDt.getDate() + 1);
+        if (duplicateEvents.length > 0) {
+           const cleanDuplicates = async () => {
+             for (const dup of duplicateEvents) {
                try {
-                 await fetch('/api/calendar/events', {
-                   method: 'POST',
-                   headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({
-                     summary: `[Shift]-${type}`,
-                     start: { date: dateStr },
-                     end: { date: endDt.toISOString().split('T')[0] }
-                   })
-                 });
-                 // wait a short bit to avoid rate limits
-                 await new Promise(r => setTimeout(r, 600));
+                 await fetch(`/api/calendar/events/${dup.id}`, { method: 'DELETE' });
+                 await new Promise(r => setTimeout(r, 500));
                } catch (e) {
                  console.error(e);
                }
              }
-             // Actually, we should probably fetch again after syncing
            };
-           syncShifts();
+           cleanDuplicates();
         }
-        
-        setEvents(normalEvents);
       } else if (res.status === 401 || res.status === 403) {
         setIsAuthenticated(false);
         const err = await res.json().catch(() => null);
@@ -951,14 +940,14 @@ export default function App() {
 
       {/* Left Column: Form */}
       {viewMode === 'home' && (
-        <div className="hidden lg:block w-full lg:w-[200px] xl:w-[240px] flex-shrink-0">
+        <div className="hidden lg:flex flex-col w-full lg:w-[200px] xl:w-[240px] flex-shrink-0 gap-3 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto p-1 -m-1" style={{ scrollbarWidth: 'none' }}>
           <DiaryForm mode="past" events={events} onEventAdded={(ev) => setEvents(prev => [...prev, ev])} clickedDate={clickedDate} />
         </div>
       )}
 
       {/* Middle Column: Timeline */}
       <div className={`w-full ${viewMode === 'home' ? 'lg:flex-1' : 'w-full xl:w-11/12 mx-auto'}`}>
-        <div className="flex flex-row flex-wrap items-center justify-center md:justify-between mb-2 sm:mb-4 gap-x-2 sm:gap-x-4 gap-y-3 overflow-visible">
+        <div className={`${viewMode === 'home' ? 'lg:hidden' : ''} flex flex-row flex-wrap items-center justify-center md:justify-between mb-2 sm:mb-4 gap-x-2 sm:gap-x-4 gap-y-3 overflow-visible`}>
           <div className="flex flex-row flex-wrap justify-center items-center gap-2 sm:gap-4 shrink-0">
             <h2 className="text-2xl sm:text-4xl font-black shrink-0">{viewMode === 'home' ? '我的行程 📅' : '我的日記 📖'}</h2>
             {viewMode === 'home' ? (
@@ -1053,8 +1042,39 @@ export default function App() {
 
       {/* Right Column: Future Form */}
       {viewMode === 'home' && (
-        <div className="hidden lg:block w-full lg:w-[200px] xl:w-[240px] flex-shrink-0">
+        <div className="hidden lg:flex flex-col gap-3 w-full lg:w-[200px] xl:w-[240px] flex-shrink-0 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto p-1 -m-1" style={{ scrollbarWidth: 'none' }}>
           <DiaryForm mode="future" events={events} onEventAdded={(ev) => setEvents(prev => [...prev, ev])} clickedDate={clickedDate} />
+          
+          <div className="flex flex-col gap-2 p-2 bg-white/50 rounded-xl border-2 border-cartoon-primary cartoon-border" data-export-ignore="true">
+            <label className="flex items-center gap-2 text-xs font-bold cursor-pointer hover:bg-white/80 p-1 rounded -mx-1">
+              <input type="checkbox" checked={hideStemBranch} onChange={e => setHideStemBranch(e.target.checked)} className="w-3.5 h-3.5 cursor-pointer" />
+              隱藏天干地支
+            </label>
+            <label className="flex items-center gap-2 text-xs font-bold cursor-pointer hover:bg-white/80 p-1 rounded -mx-1">
+              <input type="checkbox" checked={hideExportEvents} onChange={e => setHideExportEvents(e.target.checked)} className="w-3.5 h-3.5 cursor-pointer" />
+              匯出隱藏行程
+            </label>
+            
+            <div className="flex flex-col gap-1 mt-0.5">
+              <button onClick={() => setExportPending('full')} disabled={isExporting} className="cartoon-border w-full bg-white text-xs font-bold p-1.5 hover:bg-blue-50 text-cartoon-primary flex items-center justify-center disabled:opacity-50">
+                {isExporting && !isExportBlank ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Camera className="w-3.5 h-3.5 mr-1" />}
+                匯出完整
+              </button>
+              <button onClick={() => setExportPending('blank')} disabled={isExporting} className="cartoon-border w-full bg-white text-xs font-bold p-1.5 hover:bg-blue-50 text-cartoon-primary flex items-center justify-center disabled:opacity-50">
+                {isExporting && isExportBlank ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Camera className="w-3.5 h-3.5 mr-1" />}
+                匯出更表
+              </button>
+            </div>
+
+            <div className="flex flex-row gap-1 mt-0.5">
+              <button onClick={fetchEvents} className="cartoon-border flex-1 bg-white p-1.5 hover:bg-blue-50 flex items-center justify-center" title="重新整理">
+                <Loader2 className={isLoading ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
+              </button>
+              <button onClick={() => fetch('/api/auth/logout', { method: 'POST' }).then(() => window.location.reload())} className="cartoon-border flex-1 bg-white p-1.5 hover:bg-red-50 text-cartoon-danger flex items-center justify-center" title="登出">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

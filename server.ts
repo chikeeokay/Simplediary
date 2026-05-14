@@ -289,6 +289,9 @@ async function startServer() {
 
       res.json({ success: true });
     } catch (error: any) {
+      if (error?.message?.includes("Resource has been deleted") || error?.status === 404 || error?.status === 410) {
+        return res.json({ success: true });
+      }
       console.error("Failed to delete event:", error?.message || error);
       if (error?.message?.includes("insufficient") || error?.message?.includes("scopes")) {
         res.clearCookie("calendar_auth");
