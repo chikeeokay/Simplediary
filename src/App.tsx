@@ -98,7 +98,7 @@ function TimelineGrid({
       <div className="flex items-center justify-between xl:mx-10 mb-2 sm:mb-4">
         <button data-export-ignore="true" onClick={prevMonth} className="cartoon-border px-4 py-2 font-black bg-white hover:bg-gray-50">{"<"}</button>
         <div className="flex-1 flex justify-center">
-          <h3 className="text-[19px] sm:text-3xl font-black text-center px-2 py-1 sm:px-6 sm:py-2 border border-black rounded-2xl bg-[#E8C382] text-black leading-tight sm:leading-normal">
+          <h3 style={{ paddingLeft: '18px', paddingTop: '-5px', paddingBottom: '-13px' }} className="text-[19px] sm:text-3xl font-black text-center px-2 py-1 sm:px-6 sm:py-2 border border-black rounded-2xl bg-[#E8C382] text-black leading-tight sm:leading-normal">
             {(() => {
               const chineseYear = Lunar.fromDate(currentMonth).getYearInGanZhiExact() + '年';
               return hideStemBranch ? format(currentMonth, 'yyyy年M月') : `${format(currentMonth, 'yyyy年M月')} ${chineseYear}`;
@@ -195,17 +195,17 @@ function TimelineGrid({
               onClick={() => onDateClick?.(day)}
             >
               <div 
-                className={`${isExport ? 'flex-1 h-full overflow-hidden relative' : 'absolute inset-0'} p-0.5 sm:p-2 border ${cellBorderClass} ${today && !isExport ? 'ring-4 ring-cartoon-accent' : ''} rounded-lg flex flex-col cursor-pointer transition-all duration-200 ease-out bg-white ${shouldScale && !isExport ? `group-focus-within:shadow-[8px_8px_0_#000] group-hover:shadow-[8px_8px_0_#000] ${hoverPosition}` : 'group-hover:bg-gray-50 group-focus-within:bg-gray-50'}`}
+                className={`${isExport ? 'flex-1 h-full overflow-hidden relative' : 'absolute inset-0'} p-0.5 sm:p-1 md:p-1.5 lg:p-1 xl:p-1.5 2xl:p-2 border ${cellBorderClass} ${today && !isExport ? 'ring-4 ring-cartoon-accent' : ''} rounded-lg flex flex-col cursor-pointer transition-all duration-200 ease-out bg-white ${shouldScale && !isExport ? `group-focus-within:shadow-[8px_8px_0_#000] group-hover:shadow-[8px_8px_0_#000] ${hoverPosition}` : 'group-hover:bg-gray-50 group-focus-within:bg-gray-50'}`}
               >
-                <div className={`flex justify-between items-start mb-0 sm:mb-1 px-0 flex-shrink-0 leading-none ${dateTextColor}`}>
+                <div className={`flex justify-between items-start mb-0 sm:mb-0.5 xl:mb-1 px-[1px] sm:px-0 flex-shrink-0 leading-none ${dateTextColor}`}>
                   {!hideStemBranch && (
-                    <div className={`flex ${isExport && isExportBlank && enlargeExportStemBranch ? 'gap-1' : (isExport ? 'gap-0.5' : 'gap-0 sm:gap-0.5')} ${isExport ? (isExportBlank ? (enlargeExportStemBranch ? 'text-[32px] pt-1 pl-1' : 'text-[20px] pt-1 pl-1') : 'text-[16px] pt-1 pl-1') : 'text-[8.5px] sm:text-sm pt-0 sm:pt-0'} font-bold text-gray-500 opacity-90 tracking-tighter shrink min-w-0`}>
-                      <span className="flex flex-col leading-[1.05]">{getYearStemBranch(day).split('').map((c, i) => <span key={`y-${i}`}>{c}</span>)}</span>
-                      <span className="flex flex-col leading-[1.05]">{getMonthStemBranch(day).split('').map((c, i) => <span key={`m-${i}`}>{c}</span>)}</span>
-                      <span className="flex flex-col leading-[1.05]">{getDayStemBranch(day).split('').map((c, i) => <span key={`d-${i}`}>{c}</span>)}</span>
+                    <div className={`flex ${isExport && isExportBlank && enlargeExportStemBranch ? 'gap-1' : (isExport ? 'gap-0.5' : 'gap-0 md:gap-[1px] xl:gap-0.5 2xl:gap-1')} ${isExport ? (isExportBlank ? (enlargeExportStemBranch ? 'text-[32px] pt-1 pl-1' : 'text-[20px] pt-1 pl-1') : 'text-[16px] pt-1 pl-1') : 'text-[8px] sm:text-[9.5px] md:text-[11px] lg:text-[7px] xl:text-[9px] 2xl:text-[11px] pt-0'} font-bold text-gray-400 sm:text-gray-500 opacity-90 shrink-0`}>
+                      <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span key="y-0">{getYearStemBranch(day)[0]}</span><span key="y-1">{getYearStemBranch(day)[1]}</span></span>
+                      <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span key="m-0">{getMonthStemBranch(day)[0]}</span><span key="m-1">{getMonthStemBranch(day)[1]}</span></span>
+                      <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span key="d-0">{getDayStemBranch(day)[0]}</span><span key="d-1">{getDayStemBranch(day)[1]}</span></span>
                     </div>
                   )}
-                  <span className={`font-black leading-none shrink-0 ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[14px] sm:text-xl pr-0.5 sm:pr-0 -mr-0.5 sm:mr-0'} ${hideStemBranch ? 'w-full text-left pl-2' : ''}`}>{format(day, 'd')}</span>
+                  <span className={`font-black leading-none shrink-0 text-right ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[13px] sm:text-[15px] md:text-[17px] lg:text-[12px] xl:text-[15px] 2xl:text-xl pr-0 ml-0.5'} ${hideStemBranch ? 'w-full text-left pl-2 ml-0' : ''}`}>{format(day, 'd')}</span>
                 </div>
                 <div className={`grid gap-1 flex-1 overflow-hidden content-start ${shouldScale && !isExport ? `group-hover:overflow-visible group-focus-within:overflow-visible grid-cols-1 ${dayEvents.length > 1 ? 'group-hover:grid-cols-2 group-focus-within:grid-cols-2' : 'group-hover:grid-cols-1 group-focus-within:grid-cols-1'}` : (isExport && ((exportRatio === '16:9' && dayEvents.length > 1) || dayEvents.length > 2) ? 'grid-cols-2' : 'grid-cols-1')}`}>
                   {dayEvents.map(event => {
@@ -915,7 +915,7 @@ export default function App() {
 
   return (
     <>
-    <div className="min-h-screen pb-20 p-1 sm:py-2 sm:px-4 max-w-[1800px] mx-auto flex flex-col lg:flex-row gap-4 lg:gap-6">
+    <div className="min-h-screen pb-48 lg:pb-8 p-1 sm:py-2 sm:px-4 max-w-[1800px] mx-auto flex flex-col lg:flex-row gap-4 lg:gap-6">
       {/* Toast Notification */}
       <AnimatePresence>
         {errorToast && (
@@ -940,14 +940,14 @@ export default function App() {
 
       {/* Left Column: Form */}
       {viewMode === 'home' && (
-        <div className="hidden lg:flex flex-col w-full lg:w-[200px] xl:w-[240px] flex-shrink-0 gap-3 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto p-1 -m-1" style={{ scrollbarWidth: 'none' }}>
+        <div className="hidden lg:flex flex-col w-full lg:w-[200px] xl:w-[240px] flex-shrink-0 gap-3 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto no-scrollbar p-1 pb-4">
           <DiaryForm mode="past" events={events} onEventAdded={(ev) => setEvents(prev => [...prev, ev])} clickedDate={clickedDate} />
         </div>
       )}
 
       {/* Middle Column: Timeline */}
       <div className={`w-full ${viewMode === 'home' ? 'lg:flex-1' : 'w-full xl:w-11/12 mx-auto'}`}>
-        <div className={`${viewMode === 'home' ? 'lg:hidden' : ''} flex flex-row flex-wrap items-center justify-center md:justify-between mb-2 sm:mb-4 gap-x-2 sm:gap-x-4 gap-y-3 overflow-visible`}>
+        <div className={`${viewMode === 'home' ? 'hidden' : ''} flex flex-row flex-wrap items-center justify-center md:justify-between mb-2 sm:mb-4 gap-x-2 sm:gap-x-4 gap-y-3 overflow-visible`}>
           <div className="flex flex-row flex-wrap justify-center items-center gap-2 sm:gap-4 shrink-0">
             <h2 className="text-2xl sm:text-4xl font-black shrink-0">{viewMode === 'home' ? '我的行程 📅' : '我的日記 📖'}</h2>
             {viewMode === 'home' ? (
@@ -1042,7 +1042,7 @@ export default function App() {
 
       {/* Right Column: Future Form */}
       {viewMode === 'home' && (
-        <div className="hidden lg:flex flex-col gap-3 w-full lg:w-[200px] xl:w-[240px] flex-shrink-0 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto p-1 -m-1" style={{ scrollbarWidth: 'none' }}>
+        <div className="hidden lg:flex flex-col gap-3 w-full lg:w-[200px] xl:w-[240px] flex-shrink-0 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto no-scrollbar p-1 pb-4">
           <DiaryForm mode="future" events={events} onEventAdded={(ev) => setEvents(prev => [...prev, ev])} clickedDate={clickedDate} />
           
           <div className="flex flex-col gap-2 p-2 bg-white/50 rounded-xl border-2 border-cartoon-primary cartoon-border" data-export-ignore="true">
@@ -1078,83 +1078,66 @@ export default function App() {
         </div>
       )}
 
-      {/* Mobile Actions Overlay */}
+      {/* Mobile Fixed Bottom Action Bar */}
       {viewMode === 'home' && (
         <div className="lg:hidden mt-6 mb-8 px-2 flex flex-col justify-center items-center gap-4 w-full" data-export-ignore="true">
-          <div className="flex items-center gap-4 w-full max-w-sm">
+          <div className="w-full max-w-sm flex flex-col gap-3 bg-white p-4 rounded-3xl cartoon-border shadow-sm">
+            {/* Header Row */}
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+              <h2 className="text-xl font-black tracking-tight ml-1">我的行程 📅</h2>
+              <button 
+                onClick={() => setViewMode('history')}
+                className="cartoon-border font-bold px-3 py-1.5 text-xs bg-gray-50 hover:bg-gray-100 flex items-center justify-center transform transition-transform active:scale-95"
+              >
+                查看日記 <span className="ml-1 text-sm leading-none">👀</span>
+              </button>
+            </div>
+          
+          {/* Add Actions Row */}
+          <div className="flex items-center gap-2">
             <button 
               onClick={() => setMobileForm('past')}
-              className="flex-1 cartoon-border bg-cartoon-primary text-white py-3 font-black text-sm flex items-center justify-center gap-1 active:translate-y-1 transition-all shadow-sm"
+              className="flex-1 cartoon-border bg-cartoon-primary text-white py-2 font-black text-sm flex items-center justify-center gap-1 active:scale-95 transition-transform"
             >
               <Plus className="w-4 h-4" /> 補寫日記
             </button>
             <button 
               onClick={() => setMobileForm('future')}
-              className="flex-1 cartoon-border bg-cartoon-secondary text-white py-3 font-black text-sm flex items-center justify-center gap-1 active:translate-y-1 transition-all shadow-sm"
+              className="flex-1 cartoon-border bg-cartoon-secondary text-white py-2 font-black text-sm flex items-center justify-center gap-1 active:scale-95 transition-transform"
             >
               <Plus className="w-4 h-4" /> 未來日程
             </button>
           </div>
-          
-          <div className="flex flex-col gap-3 w-full max-w-sm bg-white p-4 rounded-3xl cartoon-border">
-            <div className="flex items-center justify-between gap-2">
-              <label className="flex items-center gap-1.5 font-bold cursor-pointer text-sm">
-                <input 
-                  type="checkbox" 
-                  checked={hideStemBranch} 
-                  onChange={e => setHideStemBranch(e.target.checked)} 
-                  className="w-4 h-4 cursor-pointer"
-                />
-                隱藏天干地支
-              </label>
-              <label className="flex items-center gap-1.5 font-bold cursor-pointer text-sm">
-                <input 
-                  type="checkbox" 
-                  checked={hideExportEvents} 
-                  onChange={e => setHideExportEvents(e.target.checked)} 
-                  className="w-4 h-4 cursor-pointer"
-                />
-                匯出隱藏行程
-              </label>
-            </div>
-            
-            <div className="h-px bg-gray-200 w-full my-1"></div>
 
-            <div className="flex items-center gap-2 w-full">
-              <button 
-                onClick={() => setExportPending('full')} 
-                disabled={isExporting}
-                className="flex-1 cartoon-border bg-[#FFF9C4] py-2.5 text-sm font-bold hover:bg-[#FFF59D] text-cartoon-primary disabled:opacity-50 flex items-center justify-center transition-all active:translate-y-1" 
-              >
-                {isExporting && !isExportBlank ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Camera className="w-4 h-4 mr-1" />}
+          {/* Tools Grid */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-2">
+              <button onClick={() => setExportPending('full')} disabled={isExporting} className="cartoon-border w-full bg-[#FFF9C4] text-xs font-bold p-2 text-cartoon-primary flex items-center justify-center disabled:opacity-50 active:scale-95 transition-transform">
+                {isExporting && !isExportBlank ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Camera className="w-3.5 h-3.5 mr-1" />}
                 匯出完整
               </button>
-              <button 
-                onClick={() => setExportPending('blank')} 
-                disabled={isExporting}
-                className="flex-1 cartoon-border bg-[#FFF9C4] py-2.5 text-sm font-bold hover:bg-[#FFF59D] text-cartoon-primary disabled:opacity-50 flex items-center justify-center transition-all active:translate-y-1" 
-              >
-                {isExporting && isExportBlank ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Camera className="w-4 h-4 mr-1" />}
+              <button onClick={() => setExportPending('blank')} disabled={isExporting} className="cartoon-border w-full bg-[#FFF9C4] text-xs font-bold p-2 text-cartoon-primary flex items-center justify-center disabled:opacity-50 active:scale-95 transition-transform">
+                {isExporting && isExportBlank ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Camera className="w-3.5 h-3.5 mr-1" />}
                 匯出更表
               </button>
             </div>
-
-            <div className="flex items-center gap-2 mt-1">
-              <button onClick={fetchEvents} className="flex-1 cartoon-border bg-gray-50 py-2 flex items-center justify-center hover:bg-gray-100 transition-all font-bold text-sm gap-2 active:translate-y-1">
-                <Loader2 className={isLoading ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
-                重新整理
-              </button>
-              <button 
-                onClick={() => {
-                  fetch('/api/auth/logout', { method: 'POST' }).then(() => window.location.reload());
-                }} 
-                className="flex-1 cartoon-border bg-white py-2 hover:bg-red-50 text-cartoon-danger font-bold text-sm flex items-center justify-center gap-2 transition-all active:translate-y-1" 
-              >
-                <LogOut className="w-4 h-4" />
-                登出
-              </button>
+            
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center justify-center gap-1.5 cartoon-border bg-gray-50 text-xs font-bold p-2 h-full cursor-pointer">
+                <input type="checkbox" checked={hideStemBranch} onChange={e => setHideStemBranch(e.target.checked)} className="w-3.5 h-3.5" />
+                隱藏天干地支
+              </label>
+              <div className="flex gap-2">
+                <button onClick={fetchEvents} className="cartoon-border flex-1 bg-gray-50 p-2 flex items-center justify-center active:scale-95 transition-transform">
+                  <Loader2 className={isLoading ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
+                </button>
+                <button onClick={() => fetch('/api/auth/logout', { method: 'POST' }).then(() => window.location.reload())} className="cartoon-border flex-1 bg-white p-2 hover:bg-red-50 text-cartoon-danger flex items-center justify-center active:scale-95 transition-transform">
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
+        </div>
         </div>
       )}
 

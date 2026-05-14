@@ -32,6 +32,14 @@ body {
   transform: translate(1px, 1px);
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 .cartoon-input {
   border: 1.5px solid var(--color-cartoon-ink);
   border-radius: 12px;
