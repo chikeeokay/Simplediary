@@ -1,0 +1,1176 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+import React, { useState, useEffect } from 'react';
+import type { FormEvent } from 'react';
+import { Calendar, Trash2, Clock, Plus, Loader2, Save, AlertTriangle, LogOut, Camera } from 'lucide-react';
+import { format, isSameDay, parseISO, addHours, areIntervalsOverlapping, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth } from 'date-fns';
+import { motion, AnimatePresence } from 'motion/react';
+import { toBlob } from 'html-to-image';
+import { Lunar } from 'lunar-javascript';
+
+const getDayStemBranch = (date: Date) => {
+  return Lunar.fromDate(date).getDayInGanZhiExact();
+};
+
+const getMonthStemBranch = (date: Date) => {
+  return Lunar.fromDate(date).getMonthInGanZhiExact();
+};
+
+const getYearStemBranch = (date: Date) => {
+  return Lunar.fromDate(date).getYearInGanZhiExact();
+};
+
+interface CalendarEvent {
+  id: string;
+  summary: string;
+  description?: string;
+  start: { dateTime?: string; date?: string };
+  end: { dateTime?: string; date?: string };
+  isHoliday?: boolean;
+}
+
+const PREDEFINED_ACTIVITIES = [
+  "回家食飯 🍚",
+  "陪女朋友 ❤️",
+  "做運動 🏃‍♂️",
+  "打機 🎮",
+  "睇戲 🍿",
+  "返工 💻",
+  "買餸 🛒",
+  "溫書 📚",
+  "打麻雀 🀄",
+  "玩桌遊 🎲",
+  "睇醫生 🏥",
+  "放空Hea ☁️"
+];
+
+function TimelineGrid({ 
+  containerId, 
+  currentMonth, 
+  daysInMonth, 
+  groupedEvents, 
+  handleDelete, 
+  prevMonth, 
+  nextMonth, 
+  todayAtMidnight,
+  isExport = false,
+  isExportBlank = false,
+  exportRatio,
+  hideStemBranch = false,
+  hideEvents = false,
+  enlargeExportStemBranch = false,
+  shrinkExportShift = false,
+  shifts = {},
+  toggleShift,
+  clickedDate,
+  onDateClick
+}: {
+  containerId: string;
+  currentMonth: Date;
+  daysInMonth: Date[];
+  groupedEvents: Record<string, CalendarEvent[]>;
+  handleDelete: (event: CalendarEvent) => void;
+  prevMonth: () => void;
+  nextMonth: () => void;
+  todayAtMidnight: Date;
+  isExport?: boolean;
+  isExportBlank?: boolean;
+  exportRatio?: '16:9' | '4:3' | '1:1';
+  hideStemBranch?: boolean;
+  hideEvents?: boolean;
+  enlargeExportStemBranch?: boolean;
+  shrinkExportShift?: boolean;
+  shifts?: Record<string, 'D' | 'N'>;
+  toggleShift?: (dateStr: string, e: React.MouseEvent) => void;
+  clickedDate?: Date | null;
+  onDateClick?: (date: Date) => void;
+}) {
+  return (
+    <div id={containerId} className={`bg-[#fdf2f8] rounded-2xl ${isExport ? 'p-6 xl:p-8 flex flex-col' : 'p-1.5 sm:p-4 w-full'}`} style={isExport ? { 
+      width: exportRatio === '16:9' ? '2400px' : '1800px', 
+      height: exportRatio === '1:1' ? '1800px' : '1350px',
+      minHeight: exportRatio === '1:1' ? '1800px' : '1350px',
+      minWidth: exportRatio === '16:9' ? '2400px' : '1800px', 
+      maxWidth: 'none' 
+    } : {}}>
+      <div className="flex items-center justify-between xl:mx-10 mb-2 sm:mb-4">
+        <button data-export-ignore="true" onClick={prevMonth} className="cartoon-border px-4 py-2 font-black bg-white hover:bg-gray-50">{"<"}</button>
+        <div className="flex-1 flex justify-center">
+          <h3 className="text-[19px] sm:text-3xl font-black text-center px-2 py-1 sm:px-6 sm:py-2 border border-black rounded-2xl bg-[#E8C382] text-black leading-tight sm:leading-normal">
+            {(() => {
+              const chineseYear = Lunar.fromDate(currentMonth).getYearInGanZhiExact() + '年';
+              return hideStemBranch ? format(currentMonth, 'yyyy年M月') : `${format(currentMonth, 'yyyy年M月')} ${chineseYear}`;
+            })()}
+          </h3>
+        </div>
+        <button data-export-ignore="true" onClick={nextMonth} className="cartoon-border px-4 py-2 font-black bg-white hover:bg-gray-50">{">"}</button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
+        {['日', '一', '二', '三', '四', '五', '六'].map((d, idx) => (
+          <div key={d} className={`text-center font-black text-xl sm:text-3xl py-0 sm:py-0.5 leading-tight sm:leading-tight border border-black rounded-xl bg-[#FFD700] ${idx === 0 ? 'text-[#FF6B6B]' : 'text-black'}`}>{d}</div>
+        ))}
+      </div>
+      <div 
+        className={`grid grid-cols-7 gap-1 sm:gap-2 ${isExport && exportRatio ? 'flex-1 min-h-0' : ''}`}
+        style={isExport && exportRatio ? { gridTemplateRows: `repeat(${daysInMonth.length / 7}, minmax(0, 1fr))` } : {}}
+      >
+        {daysInMonth.map((day, i) => {
+          const dateStr = format(day, "yyyy-MM-dd");
+          const rawDayEvents = [...(groupedEvents[dateStr] || [])];
+          
+          const lunar = Lunar.fromDate(day);
+          const lunarMonth = lunar.getMonth();
+          const lunarDay = lunar.getDay();
+
+          const dayEvents = (isExportBlank || hideEvents) ? rawDayEvents.filter(ev => ev.isHoliday) : rawDayEvents;
+          const isCurrentMonth = isSameMonth(day, currentMonth);
+          const today = isSameDay(day, new Date());
+          const isClicked = clickedDate ? isSameDay(day, clickedDate) : false;
+          
+          const colIndex = i % 7;
+          const rowIndex = Math.floor(i / 7);
+          const totalRows = Math.ceil(daysInMonth.length / 7);
+          const hasHoliday = dayEvents.some(e => e.isHoliday);
+          
+          let originClass = 'origin-center';
+          if (rowIndex === 0) {
+            if (colIndex <= 1) originClass = 'origin-top-left';
+            else if (colIndex >= 5) originClass = 'origin-top-right';
+            else originClass = 'origin-top';
+          } else if (rowIndex === totalRows - 1) {
+            if (colIndex <= 1) originClass = 'origin-bottom-left';
+            else if (colIndex >= 5) originClass = 'origin-bottom-right';
+            else originClass = 'origin-bottom';
+          } else {
+            if (colIndex <= 1) originClass = 'origin-left';
+            else if (colIndex >= 5) originClass = 'origin-right';
+            else originClass = 'origin-center';
+          }
+
+          const shouldScale = isCurrentMonth && dayEvents.length > 0 && !isExport;
+
+          let cellBorderClass = isCurrentMonth ? 'bg-white border-black rounded-lg' : 'bg-transparent border-gray-300 rounded-lg opacity-60';
+          // 假期或星日特別框框
+          if (isCurrentMonth && (hasHoliday || colIndex === 0)) {
+            cellBorderClass = 'bg-[#fff5f5] border-[#CC0000] rounded-lg';
+          }
+
+          let dateTextColor = 'text-gray-700';
+          if (today && !isExport) {
+            dateTextColor = 'text-cartoon-primary';
+          } else if (colIndex === 0 || hasHoliday) {
+            dateTextColor = 'text-[#CC0000]'; // Dark Red instead of #FF6B6B
+          }
+
+          let hoverPosition = '';
+          if (shouldScale && !isExport) {
+            let xPos = '';
+            if (colIndex <= 2) {
+              xPos = 'group-hover:-left-[10px] group-hover:-right-[80px] sm:group-hover:-left-[20px] sm:group-hover:-right-[180px] group-focus-within:-left-[10px] group-focus-within:-right-[80px] sm:group-focus-within:-left-[20px] sm:group-focus-within:-right-[180px]';
+            } 
+            else if (colIndex >= 4) {
+              xPos = 'group-hover:-right-[10px] group-hover:-left-[80px] sm:group-hover:-right-[20px] sm:group-hover:-left-[180px] group-focus-within:-right-[10px] group-focus-within:-left-[80px] sm:group-focus-within:-right-[20px] sm:group-focus-within:-left-[180px]';
+            } 
+            else {
+              xPos = 'group-hover:-left-[50px] group-hover:-right-[50px] sm:group-hover:-left-[100px] sm:group-hover:-right-[100px] group-focus-within:-left-[50px] group-focus-within:-right-[50px] sm:group-focus-within:-left-[100px] sm:group-focus-within:-right-[100px]';
+            }
+
+            let yPos = 'group-hover:min-h-[160%] sm:group-hover:min-h-[200%] group-hover:h-max group-focus-within:min-h-[160%] sm:group-focus-within:min-h-[200%] group-focus-within:h-max';
+            if (rowIndex === totalRows - 1) {
+              yPos += ' group-hover:bottom-0 group-hover:top-auto group-hover:mb-[20%] group-focus-within:bottom-0 group-focus-within:top-auto group-focus-within:mb-[20%]';
+            } else {
+              yPos += ' group-hover:-top-[10px] group-hover:bottom-auto group-focus-within:-top-[10px] group-focus-within:bottom-auto';
+            }
+
+            hoverPosition = `${xPos} ${yPos}`;
+          }
+
+          return (
+            <div 
+              key={dateStr} 
+              className={`relative rounded-lg group ${isExport ? 'h-full flex flex-col min-h-0' : 'min-h-[100px] sm:min-h-[140px]'} ${isExport ? '' : (isClicked ? '!z-50' : 'z-10')} ${isExport ? '' : 'hover:z-50 focus:z-50 focus-within:z-50 active:z-50 [&:focus-within]:z-50 [&:hover]:z-50'}`}
+              tabIndex={0}
+              onClick={() => onDateClick?.(day)}
+            >
+              <div 
+                className={`${isExport ? 'flex-1 h-full overflow-hidden relative' : 'absolute inset-0'} p-0.5 sm:p-2 border ${cellBorderClass} ${today && !isExport ? 'ring-4 ring-cartoon-accent' : ''} rounded-lg flex flex-col cursor-pointer transition-all duration-200 ease-out bg-white ${shouldScale && !isExport ? `group-focus-within:shadow-[8px_8px_0_#000] group-hover:shadow-[8px_8px_0_#000] ${hoverPosition}` : 'group-hover:bg-gray-50 group-focus-within:bg-gray-50'}`}
+              >
+                <div className={`flex justify-between items-start mb-0 sm:mb-1 px-0 flex-shrink-0 leading-none ${dateTextColor}`}>
+                  {!hideStemBranch && (
+                    <div className={`flex ${isExport && isExportBlank && enlargeExportStemBranch ? 'gap-1' : (isExport ? 'gap-0.5' : 'gap-0 sm:gap-0.5')} ${isExport ? (isExportBlank ? (enlargeExportStemBranch ? 'text-[32px] pt-1 pl-1' : 'text-[20px] pt-1 pl-1') : 'text-[16px] pt-1 pl-1') : 'text-[8.5px] sm:text-sm pt-0 sm:pt-0'} font-bold text-gray-500 opacity-90 tracking-tighter shrink min-w-0`}>
+                      <span className="flex flex-col leading-[1.05]">{getYearStemBranch(day).split('').map((c, i) => <span key={`y-${i}`}>{c}</span>)}</span>
+                      <span className="flex flex-col leading-[1.05]">{getMonthStemBranch(day).split('').map((c, i) => <span key={`m-${i}`}>{c}</span>)}</span>
+                      <span className="flex flex-col leading-[1.05]">{getDayStemBranch(day).split('').map((c, i) => <span key={`d-${i}`}>{c}</span>)}</span>
+                    </div>
+                  )}
+                  <span className={`font-black leading-none shrink-0 ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[14px] sm:text-xl pr-0.5 sm:pr-0 -mr-0.5 sm:mr-0'} ${hideStemBranch ? 'w-full text-left pl-2' : ''}`}>{format(day, 'd')}</span>
+                </div>
+                <div className={`grid gap-1 flex-1 overflow-hidden content-start ${shouldScale && !isExport ? `group-hover:overflow-visible group-focus-within:overflow-visible grid-cols-1 ${dayEvents.length > 1 ? 'group-hover:grid-cols-2 group-focus-within:grid-cols-2' : 'group-hover:grid-cols-1 group-focus-within:grid-cols-1'}` : (isExport && ((exportRatio === '16:9' && dayEvents.length > 1) || dayEvents.length > 2) ? 'grid-cols-2' : 'grid-cols-1')}`}>
+                  {dayEvents.map(event => {
+                   const isAllDay = !event.start?.dateTime && event.start?.date;
+                   let timeDisplay = '';
+                   if (!isAllDay && event.start?.dateTime) {
+                     const d = new Date(event.start.dateTime);
+                     const h = d.getHours();
+                     const m = d.getMinutes();
+                     const ampm = h >= 12 ? 'PM' : 'AM';
+                     const hour12 = h % 12 || 12;
+                     timeDisplay = m === 0 ? `${hour12}${ampm} ` : `${hour12}:${m.toString().padStart(2, '0')}${ampm} `;
+                   }
+                   let displaySummary = event.summary;
+                   if (event.isHoliday && (/lunar new year|農曆年初|農曆新年/i.test(displaySummary))) {
+                     if (lunarMonth === 1 && lunarDay <= 15) {
+                       displaySummary = `農曆年${lunar.getDayInChinese()}`;
+                     }
+                   }
+                   return (
+                     <div key={event.id} className="relative group/event flex-shrink-0 w-full h-max">
+                       <div className={`w-full border border-black rounded ${isExport ? (isExportBlank ? 'text-[36px] px-2 py-1.5 border-[3px]' : 'text-[24px] px-1.5 py-1 border-[2px]') : 'text-[11px] sm:text-[14px] px-[3px] py-[2px] sm:px-1.5 sm:py-1'} font-black tracking-tight leading-[1.1] sm:leading-[1.15] whitespace-pre-wrap ${event.isHoliday ? 'bg-[#FF6B6B] text-black' : (day.getTime() >= new Date().setHours(0,0,0,0) ? 'bg-[#E3F2FD] text-black' : 'bg-[#FFF9C4] text-black')}`} title={`${timeDisplay}${displaySummary}${event.description ? '\n' + event.description : ''}`}>
+                         {timeDisplay && <span className="opacity-90 mr-0.5 mb-px block sm:inline font-sans whitespace-nowrap">{timeDisplay}</span>}
+                         <div className={`break-words ${isExportBlank ? 'leading-[1.15]' : 'leading-tight'}`}>
+                           <span className="line-clamp-none sm:line-clamp-2">{displaySummary}</span>
+                           {event.description && (
+                             <span className={`font-normal opacity-90 block mt-0.5 ${isExport ? 'text-[24px] mt-1' : 'text-[8px] sm:text-[10px]'} line-clamp-none sm:line-clamp-2 leading-none whitespace-pre-wrap ${isExportBlank ? 'hidden' : ''}`}>{event.description}</span>
+                           )}
+                         </div>
+                       </div>
+                       {!event.isHoliday && !isExport && (
+                         <button
+                           onClick={(e) => { e.stopPropagation(); handleDelete(event); }}
+                           className="absolute -top-1 -right-1 opacity-0 group-hover/event:opacity-100 bg-red-500 text-white border border-black rounded-full p-[2px] z-10 hidden sm:block"
+                           title="刪除"
+                           data-export-ignore="true"
+                         >
+                           <Trash2 className="w-3 h-3" />
+                         </button>
+                       )}
+                     </div>
+                   );
+                })}
+                </div>
+                {(toggleShift || shifts?.[dateStr]) && (
+                  <div 
+                    onClick={(e) => toggleShift?.(dateStr, e)}
+                    className={`absolute z-10 flex items-center justify-center transition-all select-none
+                      ${isExportBlank && shifts?.[dateStr]
+                        ? (shrinkExportShift 
+                           ? 'bottom-2 right-2 w-[72px] h-[72px] text-[48px] rounded-[10px] font-black border-[3px] shadow-[4px_4px_0_#000]' 
+                           : 'bottom-2 right-2 sm:bottom-4 sm:right-4 w-[45%] h-[40%] text-[36px] sm:text-[48px] rounded-[10px] font-black border-[3px] shadow-[4px_4px_0_#000]')
+                        : (isExport && shifts?.[dateStr] 
+                            ? 'bottom-1 right-1 w-[32px] h-[32px] text-[20px] rounded-lg font-black border-[2px] shadow-[2px_2px_0_#000]'
+                            : 'bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 w-5 h-5 sm:w-6 sm:h-6 text-[10px] sm:text-xs rounded-sm font-bold sm:font-black border shadow-[1px_1px_0_#000]')
+                      }
+                      ${toggleShift ? 'cursor-pointer' : ''} 
+                      ${shifts?.[dateStr] 
+                        ? (shifts[dateStr] === 'D' 
+                            ? 'opacity-100 text-black bg-[#FFD700] border-black' 
+                            : 'opacity-100 text-[#FFD700] bg-black border-black') 
+                        : 'opacity-0 group-hover:opacity-10 group-focus-within:opacity-10 hover:!opacity-40 bg-gray-200 border-transparent shadow-none'}`}
+                    data-export-ignore={!shifts?.[dateStr] ? "true" : undefined}
+                    title="更表標記 (空/D/N)"
+                  >
+                    {shifts?.[dateStr] || '・'}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' | 'future', events: CalendarEvent[], onEventAdded: (ev: CalendarEvent) => void, clickedDate?: Date | null }) {
+  const [selectedActivity, setSelectedActivity] = useState(PREDEFINED_ACTIVITIES[0]);
+  const [customActivity, setCustomActivity] = useState("");
+  const [note, setNote] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    if (mode === 'future') d.setDate(d.getDate() + 1);
+    return format(d, "yyyy-MM-dd");
+  });
+
+  useEffect(() => {
+    if (clickedDate) {
+      const today = new Date(new Date().setHours(0, 0, 0, 0));
+      const clicked = new Date(clickedDate);
+      clicked.setHours(0, 0, 0, 0);
+      const isFutureClick = clicked > today;
+      if ((mode === 'future' && isFutureClick) || (mode === 'past' && !isFutureClick)) {
+        setSelectedDate(format(clickedDate, "yyyy-MM-dd"));
+      }
+    }
+  }, [clickedDate, mode]);
+  const [startHour, setStartHour] = useState(() => new Date().getHours());
+  const [endHour, setEndHour] = useState(() => (new Date().getHours() + 1) % 24);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorToast, setErrorToast] = useState("");
+
+  const showError = (msg: string) => {
+    setErrorToast(msg);
+    setTimeout(() => setErrorToast(""), 3000);
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const finalActivity = customActivity.trim() !== "" ? customActivity.trim() : selectedActivity;
+    
+    if (!finalActivity) {
+      showError("請選擇或輸入活動！");
+      return;
+    }
+
+    const start = new Date(`${selectedDate}T${startHour.toString().padStart(2, '0')}:00:00`);
+    if (isNaN(start.getTime())) {
+      showError("請選擇有效的時間！");
+      return;
+    }
+    
+    let end = new Date(`${selectedDate}T${endHour.toString().padStart(2, '0')}:00:00`);
+    if (end <= start) {
+      end = addHours(end, 24); // next day
+    }
+
+    setIsSubmitting(true);
+    try {
+      const eventData = {
+        summary: finalActivity,
+        description: note,
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: "popup", minutes: 30 },
+            { method: "popup", minutes: 0 },
+          ],
+        },
+      };
+
+      const res = await fetch('/api/calendar/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventData),
+      });
+
+      if (res.ok) {
+        const newEvent = await res.json();
+        onEventAdded(newEvent);
+        setCustomActivity("");
+        setNote("");
+        showError("✅ 新增成功！");
+      } else {
+        const errData = await res.json().catch(() => null);
+        if (res.status === 401 || res.status === 403) {
+          showError(errData?.error || "授權已過期，請重新登入");
+          setTimeout(() => window.location.reload(), 1500);
+          return;
+        }
+        throw new Error(errData?.error || "API Error");
+      }
+    } catch (err: any) {
+      console.error(err);
+      const msg = err.message || "未知錯誤";
+      showError(`❌ 新增失敗: ${msg}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isFuture = mode === 'future';
+
+  return (
+    <div className={`cartoon-border p-4 sm:p-5 sticky top-8 ${isFuture ? 'bg-blue-50' : 'bg-cartoon-card'}`}>
+      <AnimatePresence>
+        {errorToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 cartoon-border bg-cartoon-ink text-white px-6 py-3 font-bold"
+          >
+            {errorToast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-black flex items-center gap-2">
+          {isFuture ? <span>🚀 加未來行程</span> : <span>✏️ 寫日記</span>}
+        </h1>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-2.5">
+        <div>
+          <label className="block font-bold mb-0.5 text-sm text-gray-700">
+            {isFuture ? "打算做咩呀？" : "你做過咩呀？"}
+          </label>
+          <select 
+            value={selectedActivity}
+            onChange={e => {
+              setSelectedActivity(e.target.value);
+              setCustomActivity("");
+            }}
+            className="cartoon-input bg-white text-sm font-bold w-full"
+          >
+            {PREDEFINED_ACTIVITIES.map(act => (
+              <option key={act} value={act}>{act}</option>
+            ))}
+          </select>
+          
+          <input
+            type="text"
+            placeholder="自訂活動 ✨"
+            value={customActivity}
+            onChange={e => setCustomActivity(e.target.value)}
+            className="cartoon-input mt-2 text-sm font-bold bg-white w-full"
+          />
+        </div>
+
+        <div>
+          <label className="block font-bold mb-0.5 text-sm text-gray-700">幾時？</label>
+          <div className="flex gap-2 mb-1.5">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+              className="cartoon-input bg-white font-bold text-sm w-full"
+            />
+          </div>
+          <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+            <select
+              value={startHour}
+              onChange={e => setStartHour(Number(e.target.value))}
+              className="cartoon-input bg-white font-bold text-center text-sm w-full"
+              style={{ textAlignLast: 'center' }}
+            >
+              {Array.from({ length: 24 }).map((_, i) => {
+                const formatHour = (h: number) => {
+                  if (h === 0) return '12AM';
+                  if (h === 12) return '12PM';
+                  return h > 12 ? `${h - 12}PM` : `${h}AM`;
+                };
+                return (
+                  <option key={i} value={i}>
+                    {formatHour(i)}
+                  </option>
+                );
+              })}
+            </select>
+            <span className="font-bold text-gray-500 text-sm">至</span>
+            <select
+              value={endHour}
+              onChange={e => setEndHour(Number(e.target.value))}
+              className="cartoon-input bg-white font-bold text-center text-sm w-full"
+              style={{ textAlignLast: 'center' }}
+            >
+              {Array.from({ length: 24 }).map((_, i) => {
+                const formatHour = (h: number) => {
+                  if (h === 0) return '12AM';
+                  if (h === 12) return '12PM';
+                  return h > 12 ? `${h - 12}PM` : `${h}AM`;
+                };
+                return (
+                  <option key={i} value={i}>
+                    {formatHour(i)}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block font-bold mb-0.5 text-sm text-gray-700">備註 (選填)</label>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="寫低啲感受啦..."
+            className="w-full cartoon-input bg-white font-bold min-h-[60px] text-sm resize-none"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={`cartoon-border w-full text-white font-black text-base py-2 flex items-center justify-center gap-1.5 disabled:opacity-70 ${isFuture ? 'bg-cartoon-secondary hover:bg-blue-500' : 'bg-cartoon-primary hover:bg-[#F4511E]'}`}
+        >
+          {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (isFuture ? <Plus className="w-5 h-5" /> : <Save className="w-5 h-5" />)}
+          {isSubmitting ? "儲存緊..." : "記低佢！"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorToast, setErrorToast] = useState("");
+  const [viewMode, setViewMode] = useState<'home' | 'history'>('home');
+  const [historyFilter, setHistoryFilter] = useState<'2weeks' | '1month' | 'all'>('2weeks');
+  const [pendingDelete, setPendingDelete] = useState<{ event: CalendarEvent, timeoutId: NodeJS.Timeout } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  const [clickedDate, setClickedDate] = useState<Date | null>(null);
+
+  const [mobileForm, setMobileForm] = useState<'none' | 'past' | 'future'>('none');
+
+  const [hideStemBranch, setHideStemBranch] = useState(() => {
+    return localStorage.getItem('diary_hide_stem_branch') === 'true';
+  });
+
+  const [hideExportEvents, setHideExportEvents] = useState(() => {
+    return localStorage.getItem('diary_hide_export_events') === 'true';
+  });
+
+  const [enlargeExportStemBranch, setEnlargeExportStemBranch] = useState(() => {
+    return localStorage.getItem('diary_enlarge_export_stem_branch') === 'true';
+  });
+
+  const [shrinkExportShift, setShrinkExportShift] = useState(() => {
+    return localStorage.getItem('diary_shrink_export_shift') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('diary_hide_stem_branch', String(hideStemBranch));
+  }, [hideStemBranch]);
+
+  useEffect(() => {
+    localStorage.setItem('diary_hide_export_events', String(hideExportEvents));
+  }, [hideExportEvents]);
+
+  useEffect(() => {
+    localStorage.setItem('diary_enlarge_export_stem_branch', String(enlargeExportStemBranch));
+  }, [enlargeExportStemBranch]);
+
+  useEffect(() => {
+    localStorage.setItem('diary_shrink_export_shift', String(shrinkExportShift));
+  }, [shrinkExportShift]);
+
+  const [shifts, setShifts] = useState<Record<string, 'D' | 'N'>>(() => {
+    try {
+      const saved = localStorage.getItem('diary_shifts');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('diary_shifts', JSON.stringify(shifts));
+  }, [shifts]);
+
+  const toggleShift = (dateStr: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShifts(prev => {
+      const current = prev[dateStr];
+      if (!current) return { ...prev, [dateStr]: 'D' };
+      if (current === 'D') return { ...prev, [dateStr]: 'N' };
+      const next = { ...prev };
+      delete next[dateStr];
+      return next;
+    });
+  };
+
+  const [isExportBlank, setIsExportBlank] = useState(false);
+  const [exportRatio, setExportRatio] = useState<'16:9' | '4:3' | '1:1'>('4:3');
+  const [exportPending, setExportPending] = useState<'full' | 'blank' | null>(null);
+
+  const handleExportImage = async (blank: boolean = false, ratio: '16:9' | '4:3' | '1:1' = '4:3') => {
+    setExportRatio(ratio);
+    setIsExporting(true);
+    setIsExportBlank(blank);
+
+    // Give react and the browser layout engine time to render the new state, especially for large grids
+    await new Promise(r => setTimeout(r, 600));
+
+    const node = document.getElementById('hidden-export-container');
+    if (!node) {
+      showError("❌ 沒有內容可以匯出");
+      setIsExportBlank(false);
+      setIsExporting(false);
+      return;
+    }
+    try {
+      const exportWidth = ratio === '16:9' ? 2400 : 1800;
+      const exportHeight = ratio === '1:1' ? 1800 : 1350;
+      
+      const blob = await toBlob(node, { 
+        backgroundColor: '#fdf2f8',
+        pixelRatio: 1,
+        width: exportWidth, // This relies on the hidden grid actually being scaled correctly natively
+        height: exportHeight,
+        style: {
+          transform: 'none',
+        },
+        filter: (n) => {
+          // ignore elements with data-export-ignore
+          if (n instanceof HTMLElement && n.dataset.exportIgnore) return false;
+          return true;
+        }
+      });
+      
+      if (!blob) throw new Error("Could not generate image blob");
+      const dataUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `my-diary-${format(new Date(), 'yyyyMMdd-HHmmss')}.png`;
+      link.href = dataUrl;
+      link.click();
+      
+      // Cleanup to prevent memory leaks
+      setTimeout(() => URL.revokeObjectURL(dataUrl), 10000);
+      showError("✅ 成功匯出圖片", 3000);
+    } catch (err) {
+      console.error(err);
+      showError("❌ 圖片匯出失敗");
+    } finally {
+      setIsExportBlank(false);
+      setIsExporting(false);
+    }
+  };
+
+  const showError = (msg: string, duration = 3000) => {
+    setErrorToast(msg);
+    setTimeout(() => setErrorToast(""), duration);
+  };
+
+  const handleUndo = () => {
+    if (pendingDelete) {
+      clearTimeout(pendingDelete.timeoutId);
+      setEvents(prev => [...prev, pendingDelete.event]);
+      setPendingDelete(null);
+      showError("✅ 已取消刪除");
+    }
+  };
+
+  const checkAuth = async () => {
+    try {
+      const res = await fetch('/api/auth/status');
+      const data = await res.json();
+      setIsAuthenticated(data.isAuthenticated);
+      if (data.isAuthenticated) {
+        fetchEvents();
+      } else {
+        setIsLoading(false);
+      }
+    } catch (e) {
+      console.error(e);
+      setIsAuthenticated(false);
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    checkAuth();
+
+    const handleMessage = (event: MessageEvent) => {
+      const origin = event.origin;
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
+        return;
+      }
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        checkAuth();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const fetchEvents = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/calendar/events');
+      if (res.ok) {
+        const data = await res.json();
+        setEvents(data);
+      } else if (res.status === 401 || res.status === 403) {
+        setIsAuthenticated(false);
+        const err = await res.json().catch(() => null);
+        if (err?.error) showError(err.error);
+      }
+    } catch (e) {
+      console.error("Failed to fetch events", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    try {
+      const response = await fetch('/api/auth/url');
+      if (!response.ok) throw new Error('Failed to get auth URL');
+      const { url } = await response.json();
+      
+      const authWindow = window.open(
+        url,
+        'oauth_popup',
+        'width=600,height=700'
+      );
+
+      if (!authWindow) {
+        alert('Please allow popups for this site to connect your account.');
+      }
+    } catch (error) {
+      console.error('OAuth error:', error);
+      showError("無法開啟登入視窗");
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setIsAuthenticated(false);
+    setEvents([]);
+  };
+
+  const handleDelete = (event: CalendarEvent) => {
+    // 隱藏該活動
+    setEvents(prev => prev.filter(ev => ev.id !== event.id));
+    
+    // 如果已有其他等待刪除的，先執行刪除
+    if (pendingDelete) {
+        clearTimeout(pendingDelete.timeoutId);
+        fetch(`/api/calendar/events/${pendingDelete.event.id}`, { method: 'DELETE' }).catch(console.error);
+    }
+    
+    const timeoutId = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/calendar/events/${event.id}`, { method: 'DELETE' });
+        if (!res.ok) {
+           if (res.status === 401 || res.status === 403) {
+             const err = await res.json().catch(() => null);
+             showError(err?.error || "授權已過期，請重新登入");
+             setTimeout(() => window.location.reload(), 1500);
+           } else {
+             showError("❌ 刪除失敗");
+           }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      setPendingDelete(prev => (prev?.event.id === event.id ? null : prev));
+    }, 5000);
+
+    setPendingDelete({ event, timeoutId });
+    showError("✅ 活動已移除", 5000);
+  };
+
+  if (isAuthenticated === null || (isLoading && events.length === 0)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-12 h-12 text-cartoon-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        {/* Floating background shapes */}
+        <div className="absolute top-10 left-10 w-24 h-24 bg-cartoon-primary rounded-full opacity-20 blur-xl"></div>
+        <div className="absolute bottom-10 right-10 w-32 h-32 bg-cartoon-secondary rounded-full opacity-20 blur-xl"></div>
+        
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="cartoon-border bg-cartoon-card p-10 max-w-md w-full text-center relative z-10"
+        >
+          <div className="mb-6 flex justify-center">
+            <span className="text-6xl">📖</span>
+          </div>
+          <h1 className="text-4xl font-black mb-4 text-cartoon-ink tracking-tight">
+            超簡單日記
+          </h1>
+          <p className="text-lg mb-8 font-bold opacity-80">
+            用 Google Calendar 記錄你的精彩生活！不佔手機容量，隨時回味！✨
+          </p>
+          <button
+            onClick={handleLogin}
+            className="cartoon-border bg-cartoon-accent text-cartoon-ink font-black text-xl py-4 px-8 w-full flex items-center justify-center gap-3 hover:bg-yellow-400"
+          >
+            <Calendar className="w-6 h-6" />
+            連結 Google 日曆
+          </button>
+          <p className="mt-4 text-sm font-bold opacity-60">支援提醒功能 ⏰ 活動不漏接</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  const todayAtMidnight = new Date();
+  todayAtMidnight.setHours(0, 0, 0, 0);
+
+  // Group events by date for the calendar
+  const groupedEvents: Record<string, CalendarEvent[]> = {};
+  events.forEach(ev => {
+    const timeStr = ev.start?.dateTime || ev.start?.date;
+    if (!timeStr) return;
+    
+    const evDate = new Date(timeStr);
+    const dateKey = format(evDate, "yyyy-MM-dd");
+    if (!groupedEvents[dateKey]) groupedEvents[dateKey] = [];
+    groupedEvents[dateKey].push(ev);
+  });
+
+  const daysInMonth = eachDayOfInterval({
+    start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 0 }),
+    end: endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 0 })
+  });
+
+  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+
+  return (
+    <>
+    <div className="min-h-screen pb-20 p-1 sm:py-2 sm:px-4 max-w-[1800px] mx-auto flex flex-col lg:flex-row gap-4 lg:gap-6">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {errorToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-50 cartoon-border bg-cartoon-ink text-white px-6 py-3 font-bold flex flex-wrap items-center gap-4 min-w-fit whitespace-nowrap"
+          >
+            <span>{errorToast}</span>
+            {pendingDelete && errorToast === "✅ 活動已移除" && (
+              <button 
+                onClick={handleUndo} 
+                className="underline text-blue-300 hover:text-white"
+              >
+                復原 (Undo)
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Left Column: Form */}
+      {viewMode === 'home' && (
+        <div className="hidden lg:block w-full lg:w-[200px] xl:w-[240px] flex-shrink-0">
+          <DiaryForm mode="past" events={events} onEventAdded={(ev) => setEvents(prev => [...prev, ev])} clickedDate={clickedDate} />
+        </div>
+      )}
+
+      {/* Middle Column: Timeline */}
+      <div className={`w-full ${viewMode === 'home' ? 'lg:flex-1' : 'w-full xl:w-11/12 mx-auto'}`}>
+        <div className="flex flex-row flex-wrap items-center justify-center md:justify-between mb-2 sm:mb-4 gap-x-2 sm:gap-x-4 gap-y-3 overflow-visible">
+          <div className="flex flex-row flex-wrap justify-center items-center gap-2 sm:gap-4 shrink-0">
+            <h2 className="text-2xl sm:text-4xl font-black shrink-0">{viewMode === 'home' ? '我的行程 📅' : '我的日記 📖'}</h2>
+            {viewMode === 'home' ? (
+              <button 
+                onClick={() => setViewMode('history')}
+                className="cartoon-border font-bold px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center shrink-0"
+              >
+                查看日記 <span className="ml-1 text-base leading-none">👀</span>
+              </button>
+            ) : (
+              <button 
+                onClick={() => setViewMode('home')}
+                className="cartoon-border font-bold px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm bg-cartoon-secondary text-white hover:opacity-90 flex items-center justify-center shrink-0"
+              >
+                回到首頁 <span className="ml-1 text-base leading-none">🏠</span>
+              </button>
+            )}
+          </div>
+          <div className="hidden lg:flex flex-row justify-center items-center gap-2 shrink-0" data-export-ignore="true">
+            <label className="flex items-center gap-1.5 cartoon-border bg-white text-sm font-bold px-2 py-1.5 sm:px-3 sm:py-2 hover:bg-gray-50 cursor-pointer whitespace-nowrap">
+              <input 
+                type="checkbox" 
+                checked={hideStemBranch} 
+                onChange={e => setHideStemBranch(e.target.checked)} 
+                className="w-4 h-4 cursor-pointer"
+              />
+              隱藏天干地支
+            </label>
+            <div className="h-6 w-px bg-gray-300 mx-1"></div>
+            <label className="flex items-center gap-1.5 cartoon-border bg-white text-sm font-bold px-2 py-1.5 sm:px-3 sm:py-2 hover:bg-gray-50 cursor-pointer whitespace-nowrap">
+              <input 
+                type="checkbox" 
+                checked={hideExportEvents} 
+                onChange={e => setHideExportEvents(e.target.checked)} 
+                className="w-4 h-4 cursor-pointer"
+              />
+              匯出隱藏行程
+            </label>
+            <button 
+              onClick={() => setExportPending('full')} 
+              disabled={isExporting}
+              className="cartoon-border bg-white text-sm font-bold px-2 py-1.5 sm:px-3 sm:py-2 hover:bg-blue-50 text-cartoon-primary disabled:opacity-50 flex items-center justify-center whitespace-nowrap" 
+              title="匯出完整圖片"
+            >
+              {isExporting && !isExportBlank ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 animate-spin" /> : <Camera className="w-4 h-4 sm:w-5 sm:h-5 mr-1" />}
+              匯出完整
+            </button>
+            <button 
+              onClick={() => setExportPending('blank')} 
+              disabled={isExporting}
+              className="cartoon-border bg-white text-sm font-bold px-2 py-1.5 sm:px-3 sm:py-2 hover:bg-blue-50 text-cartoon-primary disabled:opacity-50 flex items-center justify-center whitespace-nowrap" 
+              title="匯出更表"
+            >
+              {isExporting && isExportBlank ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1 animate-spin" /> : <Camera className="w-4 h-4 sm:w-5 sm:h-5 mr-1" />}
+              匯出更表
+            </button>
+            <button onClick={fetchEvents} className="cartoon-border bg-white p-1.5 sm:p-2 flex items-center justify-center hover:bg-blue-50" title="重新整理">
+              <Loader2 className={isLoading ? "w-5 h-5 sm:w-6 sm:h-6 animate-spin" : "w-5 h-5 sm:w-6 sm:h-6"} />
+            </button>
+            <button 
+              onClick={() => {
+                fetch('/api/auth/logout', { method: 'POST' }).then(() => window.location.reload());
+              }} 
+              className="cartoon-border bg-white px-3 sm:px-4 py-1.5 sm:py-2 hover:bg-red-50 text-cartoon-danger font-bold flex items-center justify-center gap-1 sm:gap-2" 
+              title="登出"
+            >
+              <LogOut className="w-5 h-5 sm:w-5 sm:h-5 shrink-0" />
+            </button>
+          </div>
+        </div>
+
+        <TimelineGrid
+          containerId="timeline-container"
+          currentMonth={currentMonth}
+          daysInMonth={daysInMonth}
+          groupedEvents={groupedEvents}
+          handleDelete={handleDelete}
+          prevMonth={prevMonth}
+          nextMonth={nextMonth}
+          todayAtMidnight={todayAtMidnight}
+          shifts={shifts}
+          toggleShift={toggleShift}
+          clickedDate={clickedDate}
+          hideStemBranch={hideStemBranch}
+          enlargeExportStemBranch={enlargeExportStemBranch}
+          shrinkExportShift={shrinkExportShift}
+          onDateClick={(date) => {
+             setClickedDate(date);
+          }}
+        />
+      </div>
+
+      {/* Right Column: Future Form */}
+      {viewMode === 'home' && (
+        <div className="hidden lg:block w-full lg:w-[200px] xl:w-[240px] flex-shrink-0">
+          <DiaryForm mode="future" events={events} onEventAdded={(ev) => setEvents(prev => [...prev, ev])} clickedDate={clickedDate} />
+        </div>
+      )}
+
+      {/* Mobile Actions Overlay */}
+      {viewMode === 'home' && (
+        <div className="lg:hidden mt-6 mb-8 px-2 flex flex-col justify-center items-center gap-4 w-full" data-export-ignore="true">
+          <div className="flex items-center gap-4 w-full max-w-sm">
+            <button 
+              onClick={() => setMobileForm('past')}
+              className="flex-1 cartoon-border bg-cartoon-primary text-white py-3 font-black text-sm flex items-center justify-center gap-1 active:translate-y-1 transition-all shadow-sm"
+            >
+              <Plus className="w-4 h-4" /> 補寫日記
+            </button>
+            <button 
+              onClick={() => setMobileForm('future')}
+              className="flex-1 cartoon-border bg-cartoon-secondary text-white py-3 font-black text-sm flex items-center justify-center gap-1 active:translate-y-1 transition-all shadow-sm"
+            >
+              <Plus className="w-4 h-4" /> 未來日程
+            </button>
+          </div>
+          
+          <div className="flex flex-col gap-3 w-full max-w-sm bg-white p-4 rounded-3xl cartoon-border">
+            <div className="flex items-center justify-between gap-2">
+              <label className="flex items-center gap-1.5 font-bold cursor-pointer text-sm">
+                <input 
+                  type="checkbox" 
+                  checked={hideStemBranch} 
+                  onChange={e => setHideStemBranch(e.target.checked)} 
+                  className="w-4 h-4 cursor-pointer"
+                />
+                隱藏天干地支
+              </label>
+              <label className="flex items-center gap-1.5 font-bold cursor-pointer text-sm">
+                <input 
+                  type="checkbox" 
+                  checked={hideExportEvents} 
+                  onChange={e => setHideExportEvents(e.target.checked)} 
+                  className="w-4 h-4 cursor-pointer"
+                />
+                匯出隱藏行程
+              </label>
+            </div>
+            
+            <div className="h-px bg-gray-200 w-full my-1"></div>
+
+            <div className="flex items-center gap-2 w-full">
+              <button 
+                onClick={() => setExportPending('full')} 
+                disabled={isExporting}
+                className="flex-1 cartoon-border bg-[#FFF9C4] py-2.5 text-sm font-bold hover:bg-[#FFF59D] text-cartoon-primary disabled:opacity-50 flex items-center justify-center transition-all active:translate-y-1" 
+              >
+                {isExporting && !isExportBlank ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Camera className="w-4 h-4 mr-1" />}
+                匯出完整
+              </button>
+              <button 
+                onClick={() => setExportPending('blank')} 
+                disabled={isExporting}
+                className="flex-1 cartoon-border bg-[#FFF9C4] py-2.5 text-sm font-bold hover:bg-[#FFF59D] text-cartoon-primary disabled:opacity-50 flex items-center justify-center transition-all active:translate-y-1" 
+              >
+                {isExporting && isExportBlank ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Camera className="w-4 h-4 mr-1" />}
+                匯出更表
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 mt-1">
+              <button onClick={fetchEvents} className="flex-1 cartoon-border bg-gray-50 py-2 flex items-center justify-center hover:bg-gray-100 transition-all font-bold text-sm gap-2 active:translate-y-1">
+                <Loader2 className={isLoading ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
+                重新整理
+              </button>
+              <button 
+                onClick={() => {
+                  fetch('/api/auth/logout', { method: 'POST' }).then(() => window.location.reload());
+                }} 
+                className="flex-1 cartoon-border bg-white py-2 hover:bg-red-50 text-cartoon-danger font-bold text-sm flex items-center justify-center gap-2 transition-all active:translate-y-1" 
+              >
+                <LogOut className="w-4 h-4" />
+                登出
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Form Modal */}
+      <AnimatePresence>
+        {mobileForm !== 'none' && (
+          <motion.div 
+            initial={{ opacity: 0, y: "100%" }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: "100%" }}
+            transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+            className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm p-4 pb-24 sm:pb-8"
+          >
+            <div className="cartoon-border bg-white rounded-3xl w-full max-w-sm mx-auto relative overflow-hidden flex flex-col max-h-full">
+              <div className="bg-[#f0f0f0] p-3 flex justify-between items-center border-b border-black shrink-0">
+                <span className="font-black px-2">{mobileForm === 'future' ? '🚀 新增未來行程' : '✏️ 補寫日記'}</span>
+                <button 
+                  onClick={() => setMobileForm('none')}
+                  className="cartoon-border bg-white w-8 h-8 rounded-full flex items-center justify-center font-black active:scale-95"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto">
+                <DiaryForm 
+                  mode={mobileForm} 
+                  events={events} 
+                  onEventAdded={(ev) => {
+                    setEvents(prev => [...prev, ev]);
+                    setMobileForm('none');
+                  }} 
+                  clickedDate={clickedDate} 
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+
+    <AnimatePresence>
+      {exportPending && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        >
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            className="cartoon-border bg-white rounded-3xl w-full max-w-sm overflow-hidden flex flex-col"
+          >
+            <div className="bg-[#f0f0f0] p-4 border-b border-black text-center font-black text-lg">
+              {exportPending === 'blank' ? '匯出更表' : '匯出完整'}
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <label className="font-bold flex items-center gap-2">選擇圖片比例：</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: '4:3', label: '4:3' },
+                  { value: '16:9', label: '16:9' },
+                  { value: '1:1', label: '1:1' }
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    disabled={isExporting}
+                    onClick={() => handleExportImage(exportPending === 'blank', opt.value as any).then(() => setExportPending(null))}
+                    className="cartoon-border bg-white py-3 font-black text-sm hover:bg-gray-50 active:translate-y-1 transition-all flex justify-center items-center disabled:opacity-50"
+                  >
+                    {exportRatio === opt.value && isExporting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {exportPending === 'blank' && (
+                <div className="flex flex-col gap-2">
+                  <label className={`flex items-center gap-1.5 cartoon-border bg-white text-sm font-bold px-3 py-2 hover:bg-gray-50 cursor-pointer justify-center mt-2 ${isExporting ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <input 
+                      type="checkbox" 
+                      disabled={isExporting}
+                      checked={enlargeExportStemBranch} 
+                      onChange={e => setEnlargeExportStemBranch(e.target.checked)} 
+                      className="w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                    放大天干地支文字
+                  </label>
+                  <label className={`flex items-center gap-1.5 cartoon-border bg-white text-sm font-bold px-3 py-2 hover:bg-gray-50 cursor-pointer justify-center ${isExporting ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <input 
+                      type="checkbox" 
+                      disabled={isExporting}
+                      checked={shrinkExportShift} 
+                      onChange={e => setShrinkExportShift(e.target.checked)} 
+                      className="w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                    縮小更表標記至右下角
+                  </label>
+                </div>
+              )}
+              <button 
+                disabled={isExporting}
+                onClick={() => setExportPending(null)}
+                className="cartoon-border mt-2 bg-gray-100 hover:bg-gray-200 py-2 font-bold transition-all disabled:opacity-50"
+              >
+                取消
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* Hidden export container rendered natively at 1800px width so html-to-image captures proper grid layout without jumping */}
+    <div style={{ position: 'absolute', top: '-10000px', left: '-10000px', pointerEvents: 'none' }}>
+      <TimelineGrid
+        containerId="hidden-export-container"
+        currentMonth={currentMonth}
+        daysInMonth={daysInMonth}
+        groupedEvents={groupedEvents}
+        handleDelete={handleDelete}
+        prevMonth={prevMonth}
+        nextMonth={nextMonth}
+        todayAtMidnight={todayAtMidnight}
+        isExport={true}
+        isExportBlank={isExportBlank}
+        exportRatio={exportRatio}
+        shifts={shifts}
+        clickedDate={clickedDate}
+        hideStemBranch={hideStemBranch}
+        hideEvents={hideExportEvents}
+        enlargeExportStemBranch={enlargeExportStemBranch}
+        shrinkExportShift={shrinkExportShift}
+      />
+    </div>
+
+    </>
+  );
+}

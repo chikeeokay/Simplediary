@@ -1,0 +1,6 @@
+{
+  "name": "超簡單日記",
+  "description": "A cartoon-style diary app that integrates with Google Calendar to store and retrieve activities with reminders.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": []
+}

@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cartoon-bg: #FFEBEE;
+  --color-cartoon-card: #FFFFFF;
+  --color-cartoon-primary: #FF7043;
+  --color-cartoon-secondary: #29B6F6;
+  --color-cartoon-accent: #FFCA28;
+  --color-cartoon-ink: #37474F;
+  --color-cartoon-danger: #EF5350;
+  
+  --font-sans: "Nunito", "Comic Sans MS", "Chalkboard SE", "Inter", sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-cartoon-bg);
+  color: var(--color-cartoon-ink);
+}
+
+.cartoon-border {
+  border: 1.5px solid var(--color-cartoon-ink);
+  border-radius: 20px;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cartoon-border:hover {
+  transform: translate(-1px, -1px);
+}
+
+.cartoon-border:active {
+  transform: translate(1px, 1px);
+}
+
+.cartoon-input {
+  border: 1.5px solid var(--color-cartoon-ink);
+  border-radius: 12px;
+  padding: 6px 10px;
+  outline: none;
+}
+.cartoon-input:focus {
+  border-color: var(--color-cartoon-primary);
+}
+
+.cartoon-btn-small {
+  border: 1.5px solid var(--color-cartoon-ink);
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.cartoon-btn-small:hover {
+  transform: translate(-1px, -1px);
+}
+.cartoon-btn-small:active {
+  transform: translate(1px, 1px);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-cartoon-ink);
+  border-radius: 5px;
+  border: 2px solid var(--color-cartoon-bg);
+}
