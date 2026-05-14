@@ -267,7 +267,7 @@ function TimelineGrid({
                         ? (shifts[dateStr] === 'D' 
                             ? 'opacity-100 text-black bg-[#FFD700] border-black' 
                             : 'opacity-100 text-[#FFD700] bg-black border-black') 
-                        : 'opacity-0 group-hover:opacity-10 group-focus-within:opacity-10 hover:!opacity-40 bg-gray-200 border-transparent shadow-none'}`}
+                        : 'opacity-10 sm:opacity-0 group-hover:opacity-10 group-focus-within:opacity-10 hover:!opacity-40 bg-gray-200 border-transparent shadow-none'}`}
                     data-export-ignore={!shifts?.[dateStr] ? "true" : undefined}
                     title="更表標記 (空/D/N)"
                   >
@@ -560,21 +560,67 @@ export default function App() {
       return {};
     }
   });
+  
+  const [shiftEvents, setShiftEvents] = useState<Record<string, any>>({});
 
   useEffect(() => {
     localStorage.setItem('diary_shifts', JSON.stringify(shifts));
   }, [shifts]);
 
-  const toggleShift = (dateStr: string, e: React.MouseEvent) => {
+  const toggleShift = async (dateStr: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    const current = shifts[dateStr];
+    let next: 'D' | 'N' | undefined;
+    if (!current) next = 'D';
+    else if (current === 'D') next = 'N';
+    else next = undefined;
+    
+    // Optimistic UI update
     setShifts(prev => {
-      const current = prev[dateStr];
-      if (!current) return { ...prev, [dateStr]: 'D' };
-      if (current === 'D') return { ...prev, [dateStr]: 'N' };
-      const next = { ...prev };
-      delete next[dateStr];
-      return next;
+      const copy = { ...prev };
+      if (!next) delete copy[dateStr];
+      else copy[dateStr] = next;
+      return copy;
     });
+
+    const existingEv = shiftEvents[dateStr];
+    
+    // Delete old if exists
+    if (existingEv) {
+      setShiftEvents(prev => {
+        const copy = { ...prev };
+        delete copy[dateStr];
+        return copy;
+      });
+      fetch(`/api/calendar/events/${existingEv.id}`, { method: 'DELETE' }).catch(console.error);
+    }
+    
+    // Create new if next is present
+    if (next) {
+      const dt = new Date(dateStr);
+      const endDt = new Date(dt);
+      endDt.setDate(endDt.getDate() + 1);
+      
+      const payload = {
+        summary: `[Shift]-${next}`,
+        start: { date: dateStr },
+        end: { date: endDt.toISOString().split('T')[0] }
+      };
+      
+      fetch('/api/calendar/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(r => r.json())
+      .then(newEv => {
+        if (!newEv.error) {
+           setShiftEvents(prev => ({ ...prev, [dateStr]: newEv }));
+        }
+      })
+      .catch(console.error);
+    }
   };
 
   const [isExportBlank, setIsExportBlank] = useState(false);
@@ -687,7 +733,34 @@ export default function App() {
       const res = await fetch('/api/calendar/events');
       if (res.ok) {
         const data = await res.json();
-        setEvents(data);
+        
+        const normalEvents: typeof data = [];
+        const sfEvents: Record<string, any> = {};
+        const newShifts: Record<string, 'D' | 'N'> = {};
+        
+        data.forEach((ev: any) => {
+          if (ev.summary === '[Shift]-D' || ev.summary === '[Shift]-N') {
+            const dateStr = ev.start?.date || ev.start?.dateTime?.split('T')[0];
+            if (dateStr) {
+               sfEvents[dateStr] = ev;
+               newShifts[dateStr] = ev.summary === '[Shift]-D' ? 'D' : 'N';
+            }
+          } else {
+            normalEvents.push(ev);
+          }
+        });
+        
+        setShiftEvents(sfEvents);
+        
+        // Merge with existing local shifts, preferring server shifts
+        setShifts(prev => {
+           const merged = { ...prev, ...newShifts };
+           // optional: what if a local shift exists but isn't on server?
+           // If we want total sync, we rely purely on server shifts:
+           return newShifts;
+        });
+        
+        setEvents(normalEvents);
       } else if (res.status === 401 || res.status === 403) {
         setIsAuthenticated(false);
         const err = await res.json().catch(() => null);
@@ -725,6 +798,8 @@ export default function App() {
     await fetch('/api/auth/logout', { method: 'POST' });
     setIsAuthenticated(false);
     setEvents([]);
+    setShifts({});
+    setShiftEvents({});
   };
 
   const handleDelete = (event: CalendarEvent) => {
