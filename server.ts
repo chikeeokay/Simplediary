@@ -234,7 +234,7 @@ async function startServer() {
 
       res.json([...(primaryResponse.data.items || []), ...hkHolidays]);
     } catch (error: any) {
-      console.error("Failed to fetch events:", error);
+      console.error("Failed to fetch events:", error?.message || error);
       if (error?.message?.includes("insufficient") || error?.message?.includes("scopes")) {
         res.clearCookie("calendar_auth");
         return res.status(403).json({ error: "授權不足，請重新登入並勾選日曆權限！" });
@@ -262,7 +262,7 @@ async function startServer() {
 
       res.json(response.data);
     } catch (error: any) {
-      console.error("Failed to insert event:", error);
+      console.error("Failed to insert event:", error?.message || error);
       if (error?.message?.includes("insufficient") || error?.message?.includes("scopes")) {
         res.clearCookie("calendar_auth");
         return res.status(403).json({ error: "授權不足，請重新登入並勾選日曆權限！" });
@@ -289,7 +289,7 @@ async function startServer() {
 
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Failed to delete event:", error);
+      console.error("Failed to delete event:", error?.message || error);
       if (error?.message?.includes("insufficient") || error?.message?.includes("scopes")) {
         res.clearCookie("calendar_auth");
         return res.status(403).json({ error: "授權不足，請重新登入並勾選日曆權限！" });

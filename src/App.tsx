@@ -752,13 +752,38 @@ export default function App() {
         
         setShiftEvents(sfEvents);
         
+        const prevShifts = JSON.parse(localStorage.getItem('diary_shifts') || '{}');
+        const unsynced = Object.entries(prevShifts).filter(([dateStr]) => !newShifts[dateStr]);
+        
         // Merge with existing local shifts, preferring server shifts
-        setShifts(prev => {
-           const merged = { ...prev, ...newShifts };
-           // optional: what if a local shift exists but isn't on server?
-           // If we want total sync, we rely purely on server shifts:
-           return newShifts;
-        });
+        setShifts({ ...prevShifts, ...newShifts } as typeof newShifts);
+        
+        if (unsynced.length > 0) {
+           const syncShifts = async () => {
+             for (const [dateStr, type] of unsynced) {
+               const dt = new Date(dateStr);
+               const endDt = new Date(dt);
+               endDt.setDate(endDt.getDate() + 1);
+               try {
+                 await fetch('/api/calendar/events', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({
+                     summary: `[Shift]-${type}`,
+                     start: { date: dateStr },
+                     end: { date: endDt.toISOString().split('T')[0] }
+                   })
+                 });
+                 // wait a short bit to avoid rate limits
+                 await new Promise(r => setTimeout(r, 600));
+               } catch (e) {
+                 console.error(e);
+               }
+             }
+             // Actually, we should probably fetch again after syncing
+           };
+           syncShifts();
+        }
         
         setEvents(normalEvents);
       } else if (res.status === 401 || res.status === 403) {
