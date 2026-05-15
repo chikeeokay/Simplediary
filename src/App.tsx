@@ -192,12 +192,16 @@ function TimelineGrid({
           return (
             <div 
               key={dateStr} 
-              className={`relative rounded-lg group ${isExport ? 'h-full flex flex-col min-h-0' : 'min-h-[120px] sm:min-h-[140px] md:min-h-[160px] xl:min-h-[180px] 2xl:min-h-[200px] h-full flex flex-col'} ${isExport ? '' : (isClicked ? '!z-50' : 'z-10')} ${isExport ? '' : 'hover:z-50 focus:z-50 focus-within:z-50 active:z-50 [&:focus-within]:z-50 [&:hover]:z-50'}`}
+              className={`relative rounded-lg group ${isExport ? 'h-full flex flex-col min-h-0' : 'min-h-[60px] sm:min-h-[80px] md:min-h-[100px] xl:min-h-[120px] 2xl:min-h-[140px] h-full flex flex-col'} ${isExport ? '' : 'z-10'} ${isExport ? '' : 'hover:z-50 focus:z-50 focus-within:z-50 active:z-50 [&:focus-within]:z-50 [&:hover]:z-50'}`}
+              style={{ zIndex: !isExport && isClicked ? 999 : undefined }}
               tabIndex={0}
               onClick={() => onDateClick?.(day)}
               onDoubleClick={(e) => {
                 e.preventDefault();
-                onDateDoubleClick?.(day);
+                // Disable double-click to add on mobile devices to prevent interference with click/delete
+                if (window.innerWidth >= 1024) {
+                   onDateDoubleClick?.(day);
+                }
               }}
             >
               {!isExport && (
@@ -254,7 +258,7 @@ function TimelineGrid({
                   )}
                   <span className={`relative z-10 font-black leading-none text-right tracking-tighter ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[11px] sm:text-[13px] md:text-[17px] lg:text-[16px] xl:text-[18px] 2xl:text-[24px] pr-0 ml-0.5'} ${hideStemBranch ? 'w-full text-left pl-2 ml-0' : ''}`}>{format(day, 'd')}</span>
                 </div>
-                <div className={`grid min-h-0 gap-1 flex-1 overflow-y-auto no-scrollbar content-start px-1.5 -mx-1.5 pt-1.5 -mt-1.5 ${(toggleShift || shifts?.[dateStr]) ? (isExport ? (isExportBlank ? (shrinkExportShift ? 'pb-[84px]' : 'pb-[40px]') : 'pb-[40px]') : 'pb-[32px] sm:pb-[36px]') : ''} ${shouldScale && !isExport ? `grid-cols-1 ${dayEvents.length > 1 ? `group-hover:grid-cols-2 group-focus-within:grid-cols-2 ${isClicked ? 'grid-cols-2' : ''}` : `group-hover:grid-cols-1 group-focus-within:grid-cols-1 ${isClicked ? 'grid-cols-1' : ''}`}` : (isExport && ((exportRatio === '16:9' && dayEvents.length > 1) || dayEvents.length > 2) ? 'grid-cols-2' : 'grid-cols-1')}`}>
+                <div className={`grid min-h-0 gap-1 flex-1 ${shouldScale && !isExport ? `group-hover:overflow-y-visible group-focus-within:overflow-y-visible ${isClicked ? 'overflow-y-visible' : 'overflow-y-auto'}` : 'overflow-y-auto'} no-scrollbar content-start px-1.5 -mx-1.5 pt-1.5 -mt-1.5 ${(toggleShift || shifts?.[dateStr]) ? (isExport ? (isExportBlank ? (shrinkExportShift ? 'pb-[84px]' : 'pb-[40px]') : 'pb-[40px]') : 'pb-[32px] sm:pb-[36px]') : ''} ${shouldScale && !isExport ? `grid-cols-1 ${dayEvents.length > 1 ? `group-hover:grid-cols-2 group-focus-within:grid-cols-2 ${isClicked ? 'grid-cols-2' : ''}` : `group-hover:grid-cols-1 group-focus-within:grid-cols-1 ${isClicked ? 'grid-cols-1' : ''}`}` : (isExport && ((exportRatio === '16:9' && dayEvents.length > 1) || dayEvents.length > 2) ? 'grid-cols-2' : 'grid-cols-1')}`}>
                   {dayEvents.map(event => {
                    const isAllDay = !event.start?.dateTime && event.start?.date;
                    let timeDisplay = '';
