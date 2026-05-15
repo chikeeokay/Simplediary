@@ -198,13 +198,13 @@ function TimelineGrid({
                 <div className="invisible pointer-events-none w-full flex flex-col p-0.5 sm:p-1 md:p-1.5 lg:p-1 xl:p-1.5 2xl:p-2 opacity-0" aria-hidden="true" style={{ position: 'relative' }}>
                   <div className={`relative flex ${hideStemBranch ? 'justify-start' : 'justify-between'} items-start mb-0 sm:mb-0.5 xl:mb-1 px-[1px] sm:px-0 flex-shrink-0 leading-none w-full min-w-0`}>
                     {!hideStemBranch && (
-                      <div className={`flex ${isExport && isExportBlank && enlargeExportStemBranch ? 'gap-1' : (isExport ? 'gap-0.5' : 'gap-0 md:gap-[1px] xl:gap-0.5 2xl:gap-1')} ${isExport ? (isExportBlank ? (enlargeExportStemBranch ? 'text-[32px] pt-1 pl-1' : 'text-[20px] pt-1 pl-1') : 'text-[16px] pt-1 pl-1') : 'text-[8px] sm:text-[9.5px] md:text-[11px] lg:text-[7px] xl:text-[9px] 2xl:text-[11px] pt-0'} font-bold opacity-0`}>
+                      <div className={`flex ${isExport && isExportBlank && enlargeExportStemBranch ? 'gap-1' : (isExport ? 'gap-0.5' : 'gap-0 md:gap-[1px] xl:gap-0.5 2xl:gap-1')} ${isExport ? (isExportBlank ? (enlargeExportStemBranch ? 'text-[32px] pt-1 pl-1' : 'text-[20px] pt-1 pl-1') : 'text-[16px] pt-1 pl-1') : 'text-[8px] sm:text-[9.5px] md:text-[11px] lg:text-[10px] xl:text-[12px] 2xl:text-[14px] pt-0'} font-bold opacity-0`}>
                         <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span>年</span><span>月</span></span>
                         <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span>月</span><span>日</span></span>
                         <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span>日</span><span>日</span></span>
                       </div>
                     )}
-                    <span className={`font-black text-transparent leading-none text-right ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[13px] sm:text-[15px] md:text-[17px] lg:text-[12px] xl:text-[15px] 2xl:text-xl pr-0 ml-0.5'} ${hideStemBranch ? 'w-full text-left pl-2 ml-0' : ''}`}>{format(day, 'd')}</span>
+                    <span className={`font-black text-transparent leading-none text-right ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[13px] sm:text-[15px] md:text-[17px] lg:text-[16px] xl:text-[18px] 2xl:text-[24px] pr-0 ml-0.5'} ${hideStemBranch ? 'w-full text-left pl-2 ml-0' : ''}`}>{format(day, 'd')}</span>
                   </div>
                   <div className={`grid min-h-0 gap-1 flex-1 content-start ${(toggleShift || shifts?.[dateStr]) ? 'pb-[32px] sm:pb-[36px]' : ''} grid-cols-1`}>
                     {dayEvents.map(event => {
@@ -220,13 +220,13 @@ function TimelineGrid({
                       let displaySummary = event.summary;
                       return (
                         <div key={`ph-${event.id}`} className="flex-shrink-0 h-max w-full">
-                          <div className={`w-full border border-transparent rounded text-[10px] sm:text-[12px] px-[3px] py-[2px] sm:px-1 sm:py-0.5 leading-[1.1] sm:leading-[1.15] whitespace-pre-wrap flex flex-col font-normal`}>
+                          <div className={`w-full border border-transparent rounded text-[8.5px] sm:text-[10px] md:text-[11px] lg:text-[12px] xl:text-[14px] 2xl:text-[16px] px-[1px] md:px-[2px] lg:px-[4px] py-[2px] sm:px-1 sm:py-0.5 lg:py-[4px] leading-[1.1] sm:leading-[1.15] whitespace-pre-wrap flex flex-col font-normal tracking-tight`}>
                             <div className="line-clamp-none break-all leading-tight">
                               {timeDisplay && <div className="opacity-90 font-sans whitespace-nowrap pb-0.5">{timeDisplay}</div>}
                               <div>{displaySummary}</div>
                             </div>
                             {event.description && (
-                              <div className={`block mt-0.5 text-[10px] sm:text-[11px] line-clamp-none leading-tight whitespace-pre-wrap`}>{event.description}</div>
+                              <div className={`block mt-0.5 text-[8.5px] sm:text-[9.5px] md:text-[10px] lg:text-[11px] xl:text-[12px] 2xl:text-[14px] line-clamp-none leading-tight whitespace-pre-wrap`}>{event.description}</div>
                             )}
                           </div>
                         </div>
@@ -236,17 +236,17 @@ function TimelineGrid({
                 </div>
               )}
               <div 
-                className={`${isExport ? 'flex-1 h-full overflow-hidden' : 'absolute inset-0'} p-0.5 sm:p-1 md:p-1.5 lg:p-1 xl:p-1.5 2xl:p-2 border ${cellBorderClass} ${today && !isExport ? 'ring-4 ring-cartoon-accent' : ''} rounded-lg flex flex-col cursor-pointer transition-all duration-200 ease-out bg-white ${shouldScale && !isExport ? `group-focus-within:shadow-[8px_8px_0_#000] group-hover:shadow-[8px_8px_0_#000] ${isClicked ? 'shadow-[8px_8px_0_#000]' : ''} ${hoverPosition}` : 'group-hover:bg-gray-50 group-focus-within:bg-gray-50'} z-20 overflow-hidden group-hover:overflow-visible group-focus-within:overflow-visible ${isClicked ? 'overflow-visible' : ''}`}
+                className={`${isExport ? 'flex-1 h-full overflow-hidden' : 'absolute inset-0'} p-0.5 sm:p-1 md:p-1.5 lg:p-1 xl:p-1.5 2xl:p-2 border ${cellBorderClass} ${today && !isExport ? 'ring-4 ring-cartoon-accent' : ''} rounded-lg flex flex-col cursor-pointer transition-all duration-200 ease-out bg-white ${shouldScale && !isExport ? `group-focus-within:shadow-xl group-focus-within:border-black group-hover:shadow-xl group-hover:border-[2px] group-hover:border-black ${isClicked ? 'shadow-2xl border-[2px] border-black' : ''} ${hoverPosition}` : 'group-hover:bg-gray-50 group-focus-within:bg-gray-50'} z-20 overflow-hidden group-hover:overflow-visible group-focus-within:overflow-visible ${isClicked ? 'overflow-visible' : ''}`}
               >
                 <div className={`relative flex ${hideStemBranch ? 'justify-start' : 'justify-between'} items-start mb-0 sm:mb-0.5 xl:mb-1 px-[1px] sm:px-0 flex-shrink-0 leading-none ${dateTextColor} w-full min-w-0`}>
                   {!hideStemBranch && (
-                    <div className={`flex ${isExport && isExportBlank && enlargeExportStemBranch ? 'gap-1' : (isExport ? 'gap-0.5' : 'gap-0 md:gap-[1px] xl:gap-0.5 2xl:gap-1')} ${isExport ? (isExportBlank ? (enlargeExportStemBranch ? 'text-[32px] pt-1 pl-1' : 'text-[20px] pt-1 pl-1') : 'text-[16px] pt-1 pl-1') : 'text-[8px] sm:text-[9.5px] md:text-[11px] lg:text-[7px] xl:text-[9px] 2xl:text-[11px] pt-0'} font-bold text-gray-400 sm:text-gray-500 opacity-90`}>
+                    <div className={`flex ${isExport && isExportBlank && enlargeExportStemBranch ? 'gap-1' : (isExport ? 'gap-0.5' : 'gap-0 md:gap-[1px] xl:gap-0.5 2xl:gap-1')} ${isExport ? (isExportBlank ? (enlargeExportStemBranch ? 'text-[32px] pt-1 pl-1' : 'text-[20px] pt-1 pl-1') : 'text-[16px] pt-1 pl-1') : 'text-[6.5px] sm:text-[8px] md:text-[10px] lg:text-[10px] xl:text-[12px] 2xl:text-[14px] pt-[1px]'} font-bold text-gray-400 sm:text-gray-500 opacity-90`}>
                       <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span key="y-0">{getYearStemBranch(day)[0]}</span><span key="y-1">{getYearStemBranch(day)[1]}</span></span>
                       <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span key="m-0">{getMonthStemBranch(day)[0]}</span><span key="m-1">{getMonthStemBranch(day)[1]}</span></span>
                       <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span key="d-0">{getDayStemBranch(day)[0]}</span><span key="d-1">{getDayStemBranch(day)[1]}</span></span>
                     </div>
                   )}
-                  <span className={`relative z-10 font-black leading-none text-right ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[13px] sm:text-[15px] md:text-[17px] lg:text-[12px] xl:text-[15px] 2xl:text-xl pr-0 ml-0.5'} ${hideStemBranch ? 'w-full text-left pl-2 ml-0' : ''}`}>{format(day, 'd')}</span>
+                  <span className={`relative z-10 font-black leading-none text-right tracking-tighter ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[11px] sm:text-[13px] md:text-[17px] lg:text-[16px] xl:text-[18px] 2xl:text-[24px] pr-0 ml-0.5'} ${hideStemBranch ? 'w-full text-left pl-2 ml-0' : ''}`}>{format(day, 'd')}</span>
                 </div>
                 <div className={`grid min-h-0 gap-1 flex-1 overflow-y-auto no-scrollbar content-start ${(toggleShift || shifts?.[dateStr]) ? (isExport ? (isExportBlank ? (shrinkExportShift ? 'pb-[84px]' : 'pb-[40px]') : 'pb-[40px]') : 'pb-[32px] sm:pb-[36px]') : ''} ${shouldScale && !isExport ? `grid-cols-1 ${dayEvents.length > 1 ? `group-hover:grid-cols-2 group-focus-within:grid-cols-2 ${isClicked ? 'grid-cols-2' : ''}` : `group-hover:grid-cols-1 group-focus-within:grid-cols-1 ${isClicked ? 'grid-cols-1' : ''}`}` : (isExport && ((exportRatio === '16:9' && dayEvents.length > 1) || dayEvents.length > 2) ? 'grid-cols-2' : 'grid-cols-1')}`}>
                   {dayEvents.map(event => {
@@ -268,15 +268,15 @@ function TimelineGrid({
                    }
                    return (
                      <div key={event.id} className="relative z-20 group/event flex-shrink-0 h-max w-full">
-                       <div className={`w-full border border-black rounded ${isExport ? (isExportBlank ? 'text-[24px] px-1.5 py-1 border-[3px]' : 'text-[18px] sm:text-[20px] px-1.5 py-1 border-[2px]') : 'text-[10px] sm:text-[12px] px-[3px] py-[2px] sm:px-1 sm:py-0.5'} leading-[1.1] sm:leading-[1.15] whitespace-pre-wrap flex flex-col text-black ${event.isHoliday ? 'bg-[#FF6B6B] font-normal' : (day.getTime() >= new Date().setHours(0,0,0,0) ? 'bg-[#E3F2FD] font-normal' : 'bg-[#FFF9C4] font-normal')}`} title={`${timeDisplay}${displaySummary}${event.description ? '\n' + event.description : ''}`}>
-                         <div className={`line-clamp-none break-all ${isExportBlank ? 'leading-[1.15]' : 'leading-tight'}`}>
-                           {timeDisplay && <div className="opacity-90 font-sans whitespace-nowrap pb-0.5">{timeDisplay}</div>}
-                           <div>{displaySummary}</div>
-                         </div>
-                         {event.description && (
-                           <div className={`font-normal opacity-90 block mt-0.5 ${isExport ? 'text-[18px] sm:text-[20px] mt-1' : 'text-[9px] sm:text-[10px]'} line-clamp-none leading-tight whitespace-pre-wrap ${isExportBlank ? 'hidden' : ''}`}>{event.description}</div>
-                         )}
-                       </div>
+                        <div className={`w-full border border-black rounded ${isExport ? (isExportBlank ? 'text-[24px] px-1.5 py-1 border-[3px]' : 'text-[18px] sm:text-[20px] px-1.5 py-1 border-[2px]') : 'text-[8.5px] sm:text-[10px] md:text-[11px] lg:text-[12px] xl:text-[14px] 2xl:text-[16px] px-[1.5px] md:px-[2px] lg:px-[4px] py-[2px] sm:px-1 sm:py-0.5 lg:py-[4px]'} leading-[1.1] sm:leading-[1.15] tracking-tight whitespace-pre-wrap flex flex-col text-black ${event.isHoliday ? 'bg-[#FF6B6B] font-normal' : (day.getTime() >= new Date().setHours(0,0,0,0) ? 'bg-[#E3F2FD] font-normal' : 'bg-[#FFF9C4] font-normal')}`} title={`${timeDisplay}${displaySummary}${event.description ? '\n' + event.description : ''}`}>
+                          <div className={`line-clamp-none break-all ${isExportBlank ? 'leading-[1.15]' : 'leading-tight'}`}>
+                            {timeDisplay && <div className="opacity-90 font-sans whitespace-nowrap pb-0.5">{timeDisplay}</div>}
+                            <div>{displaySummary}</div>
+                          </div>
+                          {event.description && (
+                            <div className={`font-normal opacity-90 block mt-0.5 ${isExport ? 'text-[18px] sm:text-[20px] mt-1' : 'text-[8px] sm:text-[9.5px] md:text-[10px] lg:text-[11px] xl:text-[12px] 2xl:text-[14px]'} line-clamp-none leading-tight whitespace-pre-wrap ${isExportBlank ? 'hidden' : ''}`}>{event.description}</div>
+                          )}
+                        </div>
                        {!event.isHoliday && !isExport && (
                          <button
                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(event); }}
@@ -295,7 +295,7 @@ function TimelineGrid({
                 {(toggleShift || shifts?.[dateStr]) && (
                   <div 
                     onClick={(e) => toggleShift?.(dateStr, e)}
-                    className={`absolute z-10 flex items-center justify-center transition-all select-none
+                    className={`absolute z-30 flex items-center justify-center transition-all select-none
                       ${isExportBlank && shifts?.[dateStr]
                         ? (shrinkExportShift 
                            ? 'bottom-2 right-2 w-[72px] h-[72px] text-[48px] rounded-[10px] font-black border-[3px] shadow-[4px_4px_0_#000]' 
