@@ -65,7 +65,8 @@ function TimelineGrid({
   shifts = {},
   toggleShift,
   clickedDate,
-  onDateClick
+  onDateClick,
+  onDateDoubleClick
 }: {
   containerId: string;
   currentMonth: Date;
@@ -86,6 +87,7 @@ function TimelineGrid({
   toggleShift?: (dateStr: string, e: React.MouseEvent) => void;
   clickedDate?: Date | null;
   onDateClick?: (date: Date) => void;
+  onDateDoubleClick?: (date: Date) => void;
 }) {
   return (
     <div id={containerId} className={`bg-[#fdf2f8] rounded-2xl ${isExport ? 'p-6 xl:p-8 flex flex-col' : 'p-1.5 sm:p-4 w-full'}`} style={isExport ? { 
@@ -177,9 +179,9 @@ function TimelineGrid({
               xPos = `group-hover:-left-[50px] group-hover:-right-[50px] sm:group-hover:-left-[100px] sm:group-hover:-right-[100px] group-focus-within:-left-[50px] group-focus-within:-right-[50px] sm:group-focus-within:-left-[100px] sm:group-focus-within:-right-[100px] ${isClicked ? '-left-[50px] -right-[50px] sm:-left-[100px] sm:-right-[100px]' : ''}`;
             }
 
-            let yPos = `group-hover:min-h-[160%] sm:group-hover:min-h-[200%] group-hover:h-max group-focus-within:min-h-[160%] sm:group-focus-within:min-h-[200%] group-focus-within:h-max ${isClicked ? 'min-h-[160%] sm:min-h-[200%] h-max' : ''}`;
+            let yPos = `group-hover:min-h-full group-hover:h-max group-focus-within:min-h-full group-focus-within:h-max ${isClicked ? 'min-h-full h-max' : ''}`;
             if (rowIndex === totalRows - 1) {
-              yPos += ` group-hover:bottom-0 group-hover:top-auto group-hover:mb-[20%] group-focus-within:bottom-0 group-focus-within:top-auto group-focus-within:mb-[20%] ${isClicked ? 'bottom-0 top-auto mb-[20%]' : ''}`;
+              yPos += ` group-hover:bottom-0 group-hover:top-auto group-hover:-mb-[10px] group-focus-within:bottom-0 group-focus-within:top-auto group-focus-within:-mb-[10px] ${isClicked ? 'bottom-0 top-auto -mb-[10px]' : ''}`;
             } else {
               yPos += ` group-hover:-top-[10px] group-hover:bottom-auto group-focus-within:-top-[10px] group-focus-within:bottom-auto ${isClicked ? '-top-[10px] bottom-auto' : ''}`;
             }
@@ -193,6 +195,10 @@ function TimelineGrid({
               className={`relative rounded-lg group ${isExport ? 'h-full flex flex-col min-h-0' : 'min-h-[120px] sm:min-h-[140px] md:min-h-[160px] xl:min-h-[180px] 2xl:min-h-[200px] h-full flex flex-col'} ${isExport ? '' : (isClicked ? '!z-50' : 'z-10')} ${isExport ? '' : 'hover:z-50 focus:z-50 focus-within:z-50 active:z-50 [&:focus-within]:z-50 [&:hover]:z-50'}`}
               tabIndex={0}
               onClick={() => onDateClick?.(day)}
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                onDateDoubleClick?.(day);
+              }}
             >
               {!isExport && (
                 <div className="invisible pointer-events-none w-full flex flex-col p-0.5 sm:p-1 md:p-1.5 lg:p-1 xl:p-1.5 2xl:p-2 opacity-0" aria-hidden="true" style={{ position: 'relative' }}>
@@ -248,7 +254,7 @@ function TimelineGrid({
                   )}
                   <span className={`relative z-10 font-black leading-none text-right tracking-tighter ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[11px] sm:text-[13px] md:text-[17px] lg:text-[16px] xl:text-[18px] 2xl:text-[24px] pr-0 ml-0.5'} ${hideStemBranch ? 'w-full text-left pl-2 ml-0' : ''}`}>{format(day, 'd')}</span>
                 </div>
-                <div className={`grid min-h-0 gap-1 flex-1 overflow-y-auto no-scrollbar content-start ${(toggleShift || shifts?.[dateStr]) ? (isExport ? (isExportBlank ? (shrinkExportShift ? 'pb-[84px]' : 'pb-[40px]') : 'pb-[40px]') : 'pb-[32px] sm:pb-[36px]') : ''} ${shouldScale && !isExport ? `grid-cols-1 ${dayEvents.length > 1 ? `group-hover:grid-cols-2 group-focus-within:grid-cols-2 ${isClicked ? 'grid-cols-2' : ''}` : `group-hover:grid-cols-1 group-focus-within:grid-cols-1 ${isClicked ? 'grid-cols-1' : ''}`}` : (isExport && ((exportRatio === '16:9' && dayEvents.length > 1) || dayEvents.length > 2) ? 'grid-cols-2' : 'grid-cols-1')}`}>
+                <div className={`grid min-h-0 gap-1 flex-1 overflow-y-auto no-scrollbar content-start px-1.5 -mx-1.5 pt-1.5 -mt-1.5 ${(toggleShift || shifts?.[dateStr]) ? (isExport ? (isExportBlank ? (shrinkExportShift ? 'pb-[84px]' : 'pb-[40px]') : 'pb-[40px]') : 'pb-[32px] sm:pb-[36px]') : ''} ${shouldScale && !isExport ? `grid-cols-1 ${dayEvents.length > 1 ? `group-hover:grid-cols-2 group-focus-within:grid-cols-2 ${isClicked ? 'grid-cols-2' : ''}` : `group-hover:grid-cols-1 group-focus-within:grid-cols-1 ${isClicked ? 'grid-cols-1' : ''}`}` : (isExport && ((exportRatio === '16:9' && dayEvents.length > 1) || dayEvents.length > 2) ? 'grid-cols-2' : 'grid-cols-1')}`}>
                   {dayEvents.map(event => {
                    const isAllDay = !event.start?.dateTime && event.start?.date;
                    let timeDisplay = '';
@@ -280,12 +286,12 @@ function TimelineGrid({
                        {!event.isHoliday && !isExport && (
                          <button
                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(event); }}
-                           className={`absolute -top-3 -right-3 sm:-top-1 sm:-right-1 ${isClicked ? 'opacity-100 flex' : 'opacity-0 hidden sm:flex'} group-hover/event:opacity-100 bg-red-500 text-white border border-black rounded-full p-2 sm:p-[2px] z-30 items-center justify-center cursor-pointer`}
+                           className={`absolute -top-[5px] -right-[5px] sm:-top-[5px] sm:-right-[5px] ${isClicked ? 'opacity-100 flex' : 'opacity-0 hidden sm:flex'} group-hover/event:opacity-100 bg-[#FF6B6B] text-white border-[1.5px] border-black rounded-full p-[3px] sm:p-[2px] z-30 items-center justify-center cursor-pointer`}
                            title="刪除"
                            style={{ touchAction: 'manipulation' }}
                            data-export-ignore="true"
                          >
-                           <Trash2 className="w-4 h-4 sm:w-3 sm:h-3" />
+                           <Trash2 className="w-[14px] h-[14px] sm:w-[12px] sm:h-[12px]" />
                          </button>
                        )}
                      </div>
@@ -1087,6 +1093,11 @@ export default function App() {
              } else {
                setClickedDate(date);
              }
+          }}
+          onDateDoubleClick={(date) => {
+             setClickedDate(date);
+             const todayOrFuture = date.getTime() >= new Date().setHours(0,0,0,0);
+             setMobileForm(todayOrFuture ? 'future' : 'past');
           }}
         />
       </div>
