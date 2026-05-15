@@ -168,46 +168,87 @@ function TimelineGrid({
           if (shouldScale && !isExport) {
             let xPos = '';
             if (colIndex <= 2) {
-              xPos = 'group-hover:-left-[10px] group-hover:-right-[80px] sm:group-hover:-left-[20px] sm:group-hover:-right-[180px] group-focus-within:-left-[10px] group-focus-within:-right-[80px] sm:group-focus-within:-left-[20px] sm:group-focus-within:-right-[180px]';
+              xPos = `group-hover:-left-[10px] group-hover:-right-[80px] sm:group-hover:-left-[20px] sm:group-hover:-right-[180px] group-focus-within:-left-[10px] group-focus-within:-right-[80px] sm:group-focus-within:-left-[20px] sm:group-focus-within:-right-[180px] ${isClicked ? '-left-[10px] -right-[80px] sm:-left-[20px] sm:-right-[180px]' : ''}`;
             } 
             else if (colIndex >= 4) {
-              xPos = 'group-hover:-right-[10px] group-hover:-left-[80px] sm:group-hover:-right-[20px] sm:group-hover:-left-[180px] group-focus-within:-right-[10px] group-focus-within:-left-[80px] sm:group-focus-within:-right-[20px] sm:group-focus-within:-left-[180px]';
+              xPos = `group-hover:-right-[10px] group-hover:-left-[80px] sm:group-hover:-right-[20px] sm:group-hover:-left-[180px] group-focus-within:-right-[10px] group-focus-within:-left-[80px] sm:group-focus-within:-right-[20px] sm:group-focus-within:-left-[180px] ${isClicked ? '-right-[10px] -left-[80px] sm:-right-[20px] sm:-left-[180px]' : ''}`;
             } 
             else {
-              xPos = 'group-hover:-left-[50px] group-hover:-right-[50px] sm:group-hover:-left-[100px] sm:group-hover:-right-[100px] group-focus-within:-left-[50px] group-focus-within:-right-[50px] sm:group-focus-within:-left-[100px] sm:group-focus-within:-right-[100px]';
+              xPos = `group-hover:-left-[50px] group-hover:-right-[50px] sm:group-hover:-left-[100px] sm:group-hover:-right-[100px] group-focus-within:-left-[50px] group-focus-within:-right-[50px] sm:group-focus-within:-left-[100px] sm:group-focus-within:-right-[100px] ${isClicked ? '-left-[50px] -right-[50px] sm:-left-[100px] sm:-right-[100px]' : ''}`;
             }
 
-            let yPos = 'group-hover:min-h-[160%] sm:group-hover:min-h-[200%] group-hover:h-max group-focus-within:min-h-[160%] sm:group-focus-within:min-h-[200%] group-focus-within:h-max';
+            let yPos = `group-hover:min-h-[160%] sm:group-hover:min-h-[200%] group-hover:h-max group-focus-within:min-h-[160%] sm:group-focus-within:min-h-[200%] group-focus-within:h-max ${isClicked ? 'min-h-[160%] sm:min-h-[200%] h-max' : ''}`;
             if (rowIndex === totalRows - 1) {
-              yPos += ' group-hover:bottom-0 group-hover:top-auto group-hover:mb-[20%] group-focus-within:bottom-0 group-focus-within:top-auto group-focus-within:mb-[20%]';
+              yPos += ` group-hover:bottom-0 group-hover:top-auto group-hover:mb-[20%] group-focus-within:bottom-0 group-focus-within:top-auto group-focus-within:mb-[20%] ${isClicked ? 'bottom-0 top-auto mb-[20%]' : ''}`;
             } else {
-              yPos += ' group-hover:-top-[10px] group-hover:bottom-auto group-focus-within:-top-[10px] group-focus-within:bottom-auto';
+              yPos += ` group-hover:-top-[10px] group-hover:bottom-auto group-focus-within:-top-[10px] group-focus-within:bottom-auto ${isClicked ? '-top-[10px] bottom-auto' : ''}`;
             }
 
-            hoverPosition = `${xPos} ${yPos}`;
+            hoverPosition = `${xPos} ${yPos} group-hover:absolute group-hover:w-auto group-hover:h-auto group-focus-within:absolute group-focus-within:w-auto group-focus-within:h-auto ${isClicked ? 'absolute w-auto h-auto' : ''}`;
           }
 
           return (
             <div 
               key={dateStr} 
-              className={`relative rounded-lg group ${isExport ? 'h-full flex flex-col min-h-0' : 'min-h-[100px] sm:min-h-[140px]'} ${isExport ? '' : (isClicked ? '!z-50' : 'z-10')} ${isExport ? '' : 'hover:z-50 focus:z-50 focus-within:z-50 active:z-50 [&:focus-within]:z-50 [&:hover]:z-50'}`}
+              className={`relative rounded-lg group ${isExport ? 'h-full flex flex-col min-h-0' : 'min-h-[120px] sm:min-h-[140px] md:min-h-[160px] xl:min-h-[180px] 2xl:min-h-[200px] h-full flex flex-col'} ${isExport ? '' : (isClicked ? '!z-50' : 'z-10')} ${isExport ? '' : 'hover:z-50 focus:z-50 focus-within:z-50 active:z-50 [&:focus-within]:z-50 [&:hover]:z-50'}`}
               tabIndex={0}
               onClick={() => onDateClick?.(day)}
             >
+              {!isExport && (
+                <div className="invisible pointer-events-none w-full flex flex-col p-0.5 sm:p-1 md:p-1.5 lg:p-1 xl:p-1.5 2xl:p-2 opacity-0" aria-hidden="true" style={{ position: 'relative' }}>
+                  <div className={`relative flex ${hideStemBranch ? 'justify-start' : 'justify-between'} items-start mb-0 sm:mb-0.5 xl:mb-1 px-[1px] sm:px-0 flex-shrink-0 leading-none w-full min-w-0`}>
+                    {!hideStemBranch && (
+                      <div className={`flex ${isExport && isExportBlank && enlargeExportStemBranch ? 'gap-1' : (isExport ? 'gap-0.5' : 'gap-0 md:gap-[1px] xl:gap-0.5 2xl:gap-1')} ${isExport ? (isExportBlank ? (enlargeExportStemBranch ? 'text-[32px] pt-1 pl-1' : 'text-[20px] pt-1 pl-1') : 'text-[16px] pt-1 pl-1') : 'text-[8px] sm:text-[9.5px] md:text-[11px] lg:text-[7px] xl:text-[9px] 2xl:text-[11px] pt-0'} font-bold opacity-0`}>
+                        <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span>年</span><span>月</span></span>
+                        <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span>月</span><span>日</span></span>
+                        <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span>日</span><span>日</span></span>
+                      </div>
+                    )}
+                    <span className={`font-black text-transparent leading-none text-right ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[13px] sm:text-[15px] md:text-[17px] lg:text-[12px] xl:text-[15px] 2xl:text-xl pr-0 ml-0.5'} ${hideStemBranch ? 'w-full text-left pl-2 ml-0' : ''}`}>{format(day, 'd')}</span>
+                  </div>
+                  <div className={`grid min-h-0 gap-1 flex-1 content-start ${(toggleShift || shifts?.[dateStr]) ? 'pb-[32px] sm:pb-[36px]' : ''} grid-cols-1`}>
+                    {dayEvents.map(event => {
+                      let timeDisplay = '';
+                      if (event.time) {
+                        const h = parseInt(event.time.split(':')[0]);
+                        const d = new Date(`2000-01-01T${event.time}`);
+                        const m = d.getMinutes();
+                        const ampm = h >= 12 ? 'PM' : 'AM';
+                        const hour12 = h % 12 || 12;
+                        timeDisplay = m === 0 ? `${hour12}${ampm} ` : `${hour12}:${m.toString().padStart(2, '0')}${ampm} `;
+                      }
+                      let displaySummary = event.summary;
+                      return (
+                        <div key={`ph-${event.id}`} className="flex-shrink-0 h-max w-full">
+                          <div className={`w-full border border-transparent rounded text-[10px] sm:text-[12px] px-[3px] py-[2px] sm:px-1 sm:py-0.5 leading-[1.1] sm:leading-[1.15] whitespace-pre-wrap flex flex-col font-normal`}>
+                            <div className="line-clamp-none break-all leading-tight">
+                              {timeDisplay && <div className="opacity-90 font-sans whitespace-nowrap pb-0.5">{timeDisplay}</div>}
+                              <div>{displaySummary}</div>
+                            </div>
+                            {event.description && (
+                              <div className={`block mt-0.5 text-[10px] sm:text-[11px] line-clamp-none leading-tight whitespace-pre-wrap`}>{event.description}</div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
               <div 
-                className={`${isExport ? 'flex-1 h-full overflow-hidden relative' : 'absolute inset-0'} p-0.5 sm:p-1 md:p-1.5 lg:p-1 xl:p-1.5 2xl:p-2 border ${cellBorderClass} ${today && !isExport ? 'ring-4 ring-cartoon-accent' : ''} rounded-lg flex flex-col cursor-pointer transition-all duration-200 ease-out bg-white ${shouldScale && !isExport ? `group-focus-within:shadow-[8px_8px_0_#000] group-hover:shadow-[8px_8px_0_#000] ${hoverPosition}` : 'group-hover:bg-gray-50 group-focus-within:bg-gray-50'}`}
+                className={`${isExport ? 'flex-1 h-full overflow-hidden' : 'absolute inset-0'} p-0.5 sm:p-1 md:p-1.5 lg:p-1 xl:p-1.5 2xl:p-2 border ${cellBorderClass} ${today && !isExport ? 'ring-4 ring-cartoon-accent' : ''} rounded-lg flex flex-col cursor-pointer transition-all duration-200 ease-out bg-white ${shouldScale && !isExport ? `group-focus-within:shadow-[8px_8px_0_#000] group-hover:shadow-[8px_8px_0_#000] ${isClicked ? 'shadow-[8px_8px_0_#000]' : ''} ${hoverPosition}` : 'group-hover:bg-gray-50 group-focus-within:bg-gray-50'} z-20 overflow-hidden group-hover:overflow-visible group-focus-within:overflow-visible ${isClicked ? 'overflow-visible' : ''}`}
               >
-                <div className={`flex justify-between items-start mb-0 sm:mb-0.5 xl:mb-1 px-[1px] sm:px-0 flex-shrink-0 leading-none ${dateTextColor}`}>
+                <div className={`relative flex ${hideStemBranch ? 'justify-start' : 'justify-between'} items-start mb-0 sm:mb-0.5 xl:mb-1 px-[1px] sm:px-0 flex-shrink-0 leading-none ${dateTextColor} w-full min-w-0`}>
                   {!hideStemBranch && (
-                    <div className={`flex ${isExport && isExportBlank && enlargeExportStemBranch ? 'gap-1' : (isExport ? 'gap-0.5' : 'gap-0 md:gap-[1px] xl:gap-0.5 2xl:gap-1')} ${isExport ? (isExportBlank ? (enlargeExportStemBranch ? 'text-[32px] pt-1 pl-1' : 'text-[20px] pt-1 pl-1') : 'text-[16px] pt-1 pl-1') : 'text-[8px] sm:text-[9.5px] md:text-[11px] lg:text-[7px] xl:text-[9px] 2xl:text-[11px] pt-0'} font-bold text-gray-400 sm:text-gray-500 opacity-90 shrink-0`}>
+                    <div className={`flex ${isExport && isExportBlank && enlargeExportStemBranch ? 'gap-1' : (isExport ? 'gap-0.5' : 'gap-0 md:gap-[1px] xl:gap-0.5 2xl:gap-1')} ${isExport ? (isExportBlank ? (enlargeExportStemBranch ? 'text-[32px] pt-1 pl-1' : 'text-[20px] pt-1 pl-1') : 'text-[16px] pt-1 pl-1') : 'text-[8px] sm:text-[9.5px] md:text-[11px] lg:text-[7px] xl:text-[9px] 2xl:text-[11px] pt-0'} font-bold text-gray-400 sm:text-gray-500 opacity-90`}>
                       <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span key="y-0">{getYearStemBranch(day)[0]}</span><span key="y-1">{getYearStemBranch(day)[1]}</span></span>
                       <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span key="m-0">{getMonthStemBranch(day)[0]}</span><span key="m-1">{getMonthStemBranch(day)[1]}</span></span>
                       <span className="flex flex-col leading-[1.05] tracking-tighter w-min"><span key="d-0">{getDayStemBranch(day)[0]}</span><span key="d-1">{getDayStemBranch(day)[1]}</span></span>
                     </div>
                   )}
-                  <span className={`font-black leading-none shrink-0 text-right ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[13px] sm:text-[15px] md:text-[17px] lg:text-[12px] xl:text-[15px] 2xl:text-xl pr-0 ml-0.5'} ${hideStemBranch ? 'w-full text-left pl-2 ml-0' : ''}`}>{format(day, 'd')}</span>
+                  <span className={`relative z-10 font-black leading-none text-right ${isExport ? (isExportBlank ? 'text-[56px] pr-2 pt-0' : 'text-[28px] pr-1 pt-1') : 'text-[13px] sm:text-[15px] md:text-[17px] lg:text-[12px] xl:text-[15px] 2xl:text-xl pr-0 ml-0.5'} ${hideStemBranch ? 'w-full text-left pl-2 ml-0' : ''}`}>{format(day, 'd')}</span>
                 </div>
-                <div className={`grid gap-1 flex-1 overflow-hidden content-start ${shouldScale && !isExport ? `group-hover:overflow-visible group-focus-within:overflow-visible grid-cols-1 ${dayEvents.length > 1 ? 'group-hover:grid-cols-2 group-focus-within:grid-cols-2' : 'group-hover:grid-cols-1 group-focus-within:grid-cols-1'}` : (isExport && ((exportRatio === '16:9' && dayEvents.length > 1) || dayEvents.length > 2) ? 'grid-cols-2' : 'grid-cols-1')}`}>
+                <div className={`grid min-h-0 gap-1 flex-1 overflow-y-auto no-scrollbar content-start ${(toggleShift || shifts?.[dateStr]) ? (isExport ? (isExportBlank ? (shrinkExportShift ? 'pb-[84px]' : 'pb-[40px]') : 'pb-[40px]') : 'pb-[32px] sm:pb-[36px]') : ''} ${shouldScale && !isExport ? `grid-cols-1 ${dayEvents.length > 1 ? `group-hover:grid-cols-2 group-focus-within:grid-cols-2 ${isClicked ? 'grid-cols-2' : ''}` : `group-hover:grid-cols-1 group-focus-within:grid-cols-1 ${isClicked ? 'grid-cols-1' : ''}`}` : (isExport && ((exportRatio === '16:9' && dayEvents.length > 1) || dayEvents.length > 2) ? 'grid-cols-2' : 'grid-cols-1')}`}>
                   {dayEvents.map(event => {
                    const isAllDay = !event.start?.dateTime && event.start?.date;
                    let timeDisplay = '';
@@ -226,24 +267,25 @@ function TimelineGrid({
                      }
                    }
                    return (
-                     <div key={event.id} className="relative group/event flex-shrink-0 w-full h-max">
-                       <div className={`w-full border border-black rounded ${isExport ? (isExportBlank ? 'text-[36px] px-2 py-1.5 border-[3px]' : 'text-[24px] px-1.5 py-1 border-[2px]') : 'text-[11px] sm:text-[14px] px-[3px] py-[2px] sm:px-1.5 sm:py-1'} font-black tracking-tight leading-[1.1] sm:leading-[1.15] whitespace-pre-wrap ${event.isHoliday ? 'bg-[#FF6B6B] text-black' : (day.getTime() >= new Date().setHours(0,0,0,0) ? 'bg-[#E3F2FD] text-black' : 'bg-[#FFF9C4] text-black')}`} title={`${timeDisplay}${displaySummary}${event.description ? '\n' + event.description : ''}`}>
-                         {timeDisplay && <span className="opacity-90 mr-0.5 mb-px block sm:inline font-sans whitespace-nowrap">{timeDisplay}</span>}
-                         <div className={`break-words ${isExportBlank ? 'leading-[1.15]' : 'leading-tight'}`}>
-                           <span className="line-clamp-none sm:line-clamp-2">{displaySummary}</span>
-                           {event.description && (
-                             <span className={`font-normal opacity-90 block mt-0.5 ${isExport ? 'text-[24px] mt-1' : 'text-[8px] sm:text-[10px]'} line-clamp-none sm:line-clamp-2 leading-none whitespace-pre-wrap ${isExportBlank ? 'hidden' : ''}`}>{event.description}</span>
-                           )}
+                     <div key={event.id} className="relative z-20 group/event flex-shrink-0 h-max w-full">
+                       <div className={`w-full border border-black rounded ${isExport ? (isExportBlank ? 'text-[24px] px-1.5 py-1 border-[3px]' : 'text-[18px] sm:text-[20px] px-1.5 py-1 border-[2px]') : 'text-[10px] sm:text-[12px] px-[3px] py-[2px] sm:px-1 sm:py-0.5'} leading-[1.1] sm:leading-[1.15] whitespace-pre-wrap flex flex-col text-black ${event.isHoliday ? 'bg-[#FF6B6B] font-normal' : (day.getTime() >= new Date().setHours(0,0,0,0) ? 'bg-[#E3F2FD] font-normal' : 'bg-[#FFF9C4] font-normal')}`} title={`${timeDisplay}${displaySummary}${event.description ? '\n' + event.description : ''}`}>
+                         <div className={`line-clamp-none break-all ${isExportBlank ? 'leading-[1.15]' : 'leading-tight'}`}>
+                           {timeDisplay && <div className="opacity-90 font-sans whitespace-nowrap pb-0.5">{timeDisplay}</div>}
+                           <div>{displaySummary}</div>
                          </div>
+                         {event.description && (
+                           <div className={`font-normal opacity-90 block mt-0.5 ${isExport ? 'text-[18px] sm:text-[20px] mt-1' : 'text-[9px] sm:text-[10px]'} line-clamp-none leading-tight whitespace-pre-wrap ${isExportBlank ? 'hidden' : ''}`}>{event.description}</div>
+                         )}
                        </div>
                        {!event.isHoliday && !isExport && (
                          <button
-                           onClick={(e) => { e.stopPropagation(); handleDelete(event); }}
-                           className="absolute -top-1 -right-1 opacity-0 group-hover/event:opacity-100 bg-red-500 text-white border border-black rounded-full p-[2px] z-10 hidden sm:block"
+                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(event); }}
+                           className={`absolute -top-3 -right-3 sm:-top-1 sm:-right-1 ${isClicked ? 'opacity-100 flex' : 'opacity-0 hidden sm:flex'} group-hover/event:opacity-100 bg-red-500 text-white border border-black rounded-full p-2 sm:p-[2px] z-30 items-center justify-center cursor-pointer`}
                            title="刪除"
+                           style={{ touchAction: 'manipulation' }}
                            data-export-ignore="true"
                          >
-                           <Trash2 className="w-3 h-3" />
+                           <Trash2 className="w-4 h-4 sm:w-3 sm:h-3" />
                          </button>
                        )}
                      </div>
@@ -257,7 +299,7 @@ function TimelineGrid({
                       ${isExportBlank && shifts?.[dateStr]
                         ? (shrinkExportShift 
                            ? 'bottom-2 right-2 w-[72px] h-[72px] text-[48px] rounded-[10px] font-black border-[3px] shadow-[4px_4px_0_#000]' 
-                           : 'bottom-2 right-2 sm:bottom-4 sm:right-4 w-[45%] h-[40%] text-[36px] sm:text-[48px] rounded-[10px] font-black border-[3px] shadow-[4px_4px_0_#000]')
+                           : 'bottom-2 right-2 sm:bottom-4 sm:right-4 w-[33%] h-[33%] text-[32px] sm:text-[42px] rounded-[10px] font-black border-[3px] shadow-[4px_4px_0_#000]')
                         : (isExport && shifts?.[dateStr] 
                             ? 'bottom-1 right-1 w-[32px] h-[32px] text-[20px] rounded-lg font-black border-[2px] shadow-[2px_2px_0_#000]'
                             : 'bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 w-5 h-5 sm:w-6 sm:h-6 text-[10px] sm:text-xs rounded-sm font-bold sm:font-black border shadow-[1px_1px_0_#000]')
@@ -414,7 +456,7 @@ function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' |
               setSelectedActivity(e.target.value);
               setCustomActivity("");
             }}
-            className="cartoon-input bg-white text-sm font-bold w-full"
+            className="cartoon-input bg-white text-sm w-full"
           >
             {PREDEFINED_ACTIVITIES.map(act => (
               <option key={act} value={act}>{act}</option>
@@ -426,7 +468,7 @@ function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' |
             placeholder="自訂活動 ✨"
             value={customActivity}
             onChange={e => setCustomActivity(e.target.value)}
-            className="cartoon-input mt-2 text-sm font-bold bg-white w-full"
+            className="cartoon-input mt-2 text-sm bg-white w-full"
           />
         </div>
 
@@ -437,14 +479,14 @@ function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' |
               type="date"
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
-              className="cartoon-input bg-white font-bold text-sm w-full"
+              className="cartoon-input bg-white text-sm w-full"
             />
           </div>
           <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
             <select
               value={startHour}
               onChange={e => setStartHour(Number(e.target.value))}
-              className="cartoon-input bg-white font-bold text-center text-sm w-full"
+              className="cartoon-input bg-white text-center text-sm w-full"
               style={{ textAlignLast: 'center' }}
             >
               {Array.from({ length: 24 }).map((_, i) => {
@@ -464,7 +506,7 @@ function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' |
             <select
               value={endHour}
               onChange={e => setEndHour(Number(e.target.value))}
-              className="cartoon-input bg-white font-bold text-center text-sm w-full"
+              className="cartoon-input bg-white text-center text-sm w-full"
               style={{ textAlignLast: 'center' }}
             >
               {Array.from({ length: 24 }).map((_, i) => {
@@ -489,7 +531,7 @@ function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' |
             value={note}
             onChange={e => setNote(e.target.value)}
             placeholder="寫低啲感受啦..."
-            className="w-full cartoon-input bg-white font-bold min-h-[60px] text-sm resize-none"
+            className="w-full cartoon-input bg-white min-h-[60px] text-sm resize-none"
           />
         </div>
 
@@ -696,7 +738,9 @@ export default function App() {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch('/api/auth/status');
+      const res = await fetch(`/api/auth/status?t=${Date.now()}`, {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       const data = await res.json();
       setIsAuthenticated(data.isAuthenticated);
       if (data.isAuthenticated) {
@@ -715,16 +759,19 @@ export default function App() {
     checkAuth();
 
     const handleMessage = (event: MessageEvent) => {
-      const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
+      if (event.origin !== window.location.origin) {
         return;
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         checkAuth();
       }
     };
+
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
   }, []);
 
   const fetchEvents = async () => {
@@ -1035,7 +1082,11 @@ export default function App() {
           enlargeExportStemBranch={enlargeExportStemBranch}
           shrinkExportShift={shrinkExportShift}
           onDateClick={(date) => {
-             setClickedDate(date);
+             if (clickedDate && isSameDay(date, clickedDate)) {
+               setClickedDate(null);
+             } else {
+               setClickedDate(date);
+             }
           }}
         />
       </div>
