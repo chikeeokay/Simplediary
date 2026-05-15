@@ -66,8 +66,7 @@ function TimelineGrid({
   toggleShift,
   clickedDate,
   onDateClick,
-  onDateDoubleClick,
-  onEventClick
+  onDateDoubleClick
 }: {
   containerId: string;
   currentMonth: Date;
@@ -89,7 +88,6 @@ function TimelineGrid({
   clickedDate?: Date | null;
   onDateClick?: (date: Date) => void;
   onDateDoubleClick?: (date: Date) => void;
-  onEventClick?: (event: CalendarEvent) => void;
 }) {
   return (
     <div id={containerId} className={`bg-[#fdf2f8] rounded-2xl ${isExport ? 'p-6 xl:p-8 flex flex-col' : 'p-1.5 sm:p-4 w-full'}`} style={isExport ? { 
@@ -220,11 +218,10 @@ function TimelineGrid({
                   </div>
                   <div className={`grid min-h-0 gap-1 flex-1 content-start ${(toggleShift || shifts?.[dateStr]) ? 'pb-[32px] sm:pb-[36px]' : ''} grid-cols-1`}>
                     {dayEvents.map(event => {
-                      const isAllDay = !event.start?.dateTime && event.start?.date;
                       let timeDisplay = '';
-                      if (!isAllDay && event.start?.dateTime) {
-                        const d = new Date(event.start.dateTime);
-                        const h = d.getHours();
+                      if (event.time) {
+                        const h = parseInt(event.time.split(':')[0]);
+                        const d = new Date(`2000-01-01T${event.time}`);
                         const m = d.getMinutes();
                         const ampm = h >= 12 ? 'PM' : 'AM';
                         const hour12 = h % 12 || 12;
@@ -280,20 +277,8 @@ function TimelineGrid({
                      }
                    }
                    return (
-                     <div 
-                       key={event.id} 
-                       className="relative z-20 group/event flex-shrink-0 h-max w-full"
-                     >
-                        <div 
-                          className={`w-full border border-black rounded ${isExport ? (isExportBlank ? 'text-[24px] px-1.5 py-1 border-[3px]' : 'text-[18px] sm:text-[20px] px-1.5 py-1 border-[2px]') : 'text-[8.5px] sm:text-[10px] md:text-[11px] lg:text-[12px] xl:text-[14px] 2xl:text-[16px] px-[1.5px] md:px-[2px] lg:px-[4px] py-[2px] sm:px-1 sm:py-0.5 lg:py-[4px]'} leading-[1.1] sm:leading-[1.15] tracking-tight whitespace-pre-wrap flex flex-col text-black ${event.isHoliday ? 'bg-[#FF6B6B] font-normal cursor-default' : (day.getTime() >= new Date().setHours(0,0,0,0) ? 'bg-[#E3F2FD] font-normal cursor-pointer hover:brightness-95' : 'bg-[#FFF9C4] font-normal cursor-pointer hover:brightness-95')}`} 
-                          title={`${timeDisplay}${displaySummary}${event.description ? '\n' + event.description : ''}`}
-                          onClick={(e) => {
-                            if (!event.isHoliday && onEventClick) {
-                              e.stopPropagation();
-                              onEventClick(event);
-                            }
-                          }}
-                        >
+                     <div key={event.id} className="relative z-20 group/event flex-shrink-0 h-max w-full">
+                        <div className={`w-full border border-black rounded ${isExport ? (isExportBlank ? 'text-[24px] px-1.5 py-1 border-[3px]' : 'text-[18px] sm:text-[20px] px-1.5 py-1 border-[2px]') : 'text-[8.5px] sm:text-[10px] md:text-[11px] lg:text-[12px] xl:text-[14px] 2xl:text-[16px] px-[1.5px] md:px-[2px] lg:px-[4px] py-[2px] sm:px-1 sm:py-0.5 lg:py-[4px]'} leading-[1.1] sm:leading-[1.15] tracking-tight whitespace-pre-wrap flex flex-col text-black ${event.isHoliday ? 'bg-[#FF6B6B] font-normal' : (day.getTime() >= new Date().setHours(0,0,0,0) ? 'bg-[#E3F2FD] font-normal' : 'bg-[#FFF9C4] font-normal')}`} title={`${timeDisplay}${displaySummary}${event.description ? '\n' + event.description : ''}`}>
                           <div className={`line-clamp-none break-all ${isExportBlank ? 'leading-[1.15]' : 'leading-tight'}`}>
                             {timeDisplay && <div className="opacity-90 font-sans whitespace-nowrap pb-0.5">{timeDisplay}</div>}
                             <div>{displaySummary}</div>
@@ -350,23 +335,7 @@ function TimelineGrid({
   )
 }
 
-function DiaryForm({ 
-  mode, 
-  events, 
-  onEventAdded, 
-  clickedDate,
-  editingEvent,
-  onEventUpdated,
-  onCancelEdit
-}: { 
-  mode: 'past' | 'future' | 'edit', 
-  events: CalendarEvent[], 
-  onEventAdded: (ev: CalendarEvent) => void, 
-  clickedDate?: Date | null,
-  editingEvent?: CalendarEvent | null,
-  onEventUpdated?: (ev: CalendarEvent) => void,
-  onCancelEdit?: () => void
-}) {
+function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' | 'future', events: CalendarEvent[], onEventAdded: (ev: CalendarEvent) => void, clickedDate?: Date | null }) {
   const [selectedActivity, setSelectedActivity] = useState(PREDEFINED_ACTIVITIES[0]);
   const [customActivity, setCustomActivity] = useState("");
   const [note, setNote] = useState("");
@@ -376,30 +345,8 @@ function DiaryForm({
     return format(d, "yyyy-MM-dd");
   });
 
-  const [startHour, setStartHour] = useState(() => new Date().getHours());
-  const [endHour, setEndHour] = useState(() => (new Date().getHours() + 1) % 24);
-
   useEffect(() => {
-    if (editingEvent) {
-      const summary = editingEvent.summary || "";
-      if (PREDEFINED_ACTIVITIES.includes(summary)) {
-        setSelectedActivity(summary);
-        setCustomActivity("");
-      } else {
-        setSelectedActivity('自訂');
-        setCustomActivity(summary);
-      }
-      setNote(editingEvent.description || "");
-      
-      const startDate = editingEvent.start?.dateTime ? new Date(editingEvent.start.dateTime) : (editingEvent.start?.date ? new Date(editingEvent.start.date) : new Date());
-      setSelectedDate(format(startDate, "yyyy-MM-dd"));
-      if (editingEvent.start?.dateTime) {
-        setStartHour(new Date(editingEvent.start.dateTime).getHours());
-      }
-      if (editingEvent.end?.dateTime) {
-        setEndHour(new Date(editingEvent.end.dateTime).getHours());
-      }
-    } else if (clickedDate) {
+    if (clickedDate) {
       const today = new Date(new Date().setHours(0, 0, 0, 0));
       const clicked = new Date(clickedDate);
       clicked.setHours(0, 0, 0, 0);
@@ -408,8 +355,9 @@ function DiaryForm({
         setSelectedDate(format(clickedDate, "yyyy-MM-dd"));
       }
     }
-  }, [clickedDate, mode, editingEvent]);
-
+  }, [clickedDate, mode]);
+  const [startHour, setStartHour] = useState(() => new Date().getHours());
+  const [endHour, setEndHour] = useState(() => (new Date().getHours() + 1) % 24);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorToast, setErrorToast] = useState("");
 
@@ -454,26 +402,18 @@ function DiaryForm({
         },
       };
 
-      const url = editingEvent ? `/api/calendar/events/${editingEvent.id}` : '/api/calendar/events';
-      const method = editingEvent ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
+      const res = await fetch('/api/calendar/events', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(eventData),
       });
 
       if (res.ok) {
-        const returnedEvent = await res.json();
-        if (editingEvent && onEventUpdated) {
-          onEventUpdated(returnedEvent);
-          showError("✅ 修改成功！");
-        } else {
-          onEventAdded(returnedEvent);
-          setCustomActivity("");
-          setNote("");
-          showError("✅ 新增成功！");
-        }
+        const newEvent = await res.json();
+        onEventAdded(newEvent);
+        setCustomActivity("");
+        setNote("");
+        showError("✅ 新增成功！");
       } else {
         const errData = await res.json().catch(() => null);
         if (res.status === 401 || res.status === 403) {
@@ -605,22 +545,13 @@ function DiaryForm({
           />
         </div>
 
-        {onCancelEdit && (
-          <button
-            type="button"
-            onClick={onCancelEdit}
-            className="cartoon-border w-full text-black bg-white hover:bg-gray-100 font-black text-base py-2 mb-2"
-          >
-            取消修改
-          </button>
-        )}
         <button
           type="submit"
           disabled={isSubmitting}
-          className={`cartoon-border w-full text-white font-black text-base py-2 flex items-center justify-center gap-1.5 disabled:opacity-70 ${isFuture || editingEvent ? 'bg-cartoon-secondary hover:bg-blue-500' : 'bg-cartoon-primary hover:bg-[#F4511E]'}`}
+          className={`cartoon-border w-full text-white font-black text-base py-2 flex items-center justify-center gap-1.5 disabled:opacity-70 ${isFuture ? 'bg-cartoon-secondary hover:bg-blue-500' : 'bg-cartoon-primary hover:bg-[#F4511E]'}`}
         >
-          {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (editingEvent ? <Save className="w-5 h-5" /> : (isFuture ? <Plus className="w-5 h-5" /> : <Save className="w-5 h-5" />))}
-          {isSubmitting ? "儲存緊..." : (editingEvent ? "確認修改" : "記低佢！")}
+          {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (isFuture ? <Plus className="w-5 h-5" /> : <Save className="w-5 h-5" />)}
+          {isSubmitting ? "儲存緊..." : "記低佢！"}
         </button>
       </form>
     </div>
@@ -638,9 +569,8 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [clickedDate, setClickedDate] = useState<Date | null>(null);
-  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
-  const [mobileForm, setMobileForm] = useState<'none' | 'past' | 'future' | 'edit'>('none');
+  const [mobileForm, setMobileForm] = useState<'none' | 'past' | 'future'>('none');
 
   const [hideStemBranch, setHideStemBranch] = useState(() => {
     return localStorage.getItem('diary_hide_stem_branch') === 'true';
@@ -1040,21 +970,6 @@ export default function App() {
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
-  const handleEventClick = (event: CalendarEvent) => {
-    setEditingEvent(event);
-    if (window.innerWidth < 1024) {
-      setMobileForm('edit');
-    }
-  };
-
-  const handleUpdateEvent = (updatedEv: CalendarEvent) => {
-    setEvents(prev => prev.map(e => e.id === updatedEv.id ? updatedEv : e));
-    setEditingEvent(null);
-    setMobileForm('none');
-  };
-
-  const isEditingEventFuture = editingEvent ? new Date(editingEvent.start?.dateTime || editingEvent.start?.date || new Date().toISOString()) >= new Date(new Date().setHours(0,0,0,0)) : false;
-
   return (
     <>
     <div className="min-h-screen pb-48 lg:pb-8 p-1 sm:py-2 sm:px-4 max-w-[1800px] mx-auto flex flex-col lg:flex-row gap-4 lg:gap-6">
@@ -1083,15 +998,7 @@ export default function App() {
       {/* Left Column: Form */}
       {viewMode === 'home' && (
         <div className="hidden lg:flex flex-col w-full lg:w-[200px] xl:w-[240px] flex-shrink-0 gap-3 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto no-scrollbar p-1 pb-4">
-          <DiaryForm 
-            mode={editingEvent && !isEditingEventFuture ? 'edit' : 'past'} 
-            events={events} 
-            onEventAdded={(ev) => setEvents(prev => [...prev, ev])} 
-            clickedDate={clickedDate} 
-            editingEvent={!isEditingEventFuture ? editingEvent : undefined}
-            onEventUpdated={handleUpdateEvent}
-            onCancelEdit={editingEvent && !isEditingEventFuture ? () => setEditingEvent(null) : undefined}
-          />
+          <DiaryForm mode="past" events={events} onEventAdded={(ev) => setEvents(prev => [...prev, ev])} clickedDate={clickedDate} />
         </div>
       )}
 
@@ -1196,22 +1103,13 @@ export default function App() {
              const todayOrFuture = date.getTime() >= new Date().setHours(0,0,0,0);
              setMobileForm(todayOrFuture ? 'future' : 'past');
           }}
-          onEventClick={handleEventClick}
         />
       </div>
 
       {/* Right Column: Future Form */}
       {viewMode === 'home' && (
         <div className="hidden lg:flex flex-col gap-3 w-full lg:w-[200px] xl:w-[240px] flex-shrink-0 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto no-scrollbar p-1 pb-4">
-          <DiaryForm 
-            mode={editingEvent && isEditingEventFuture ? 'edit' : 'future'} 
-            events={events} 
-            onEventAdded={(ev) => setEvents(prev => [...prev, ev])} 
-            clickedDate={clickedDate} 
-            editingEvent={isEditingEventFuture ? editingEvent : undefined}
-            onEventUpdated={handleUpdateEvent}
-            onCancelEdit={editingEvent && isEditingEventFuture ? () => setEditingEvent(null) : undefined}
-          />
+          <DiaryForm mode="future" events={events} onEventAdded={(ev) => setEvents(prev => [...prev, ev])} clickedDate={clickedDate} />
           
           <div className="flex flex-col gap-2 p-2 bg-white/50 rounded-xl border-2 border-cartoon-primary cartoon-border" data-export-ignore="true">
             <label className="flex items-center gap-2 text-xs font-bold cursor-pointer hover:bg-white/80 p-1 rounded -mx-1">
@@ -1321,12 +1219,9 @@ export default function App() {
           >
             <div className="cartoon-border bg-white rounded-3xl w-full max-w-sm mx-auto relative overflow-hidden flex flex-col max-h-full">
               <div className="bg-[#f0f0f0] p-3 flex justify-between items-center border-b border-black shrink-0">
-                <span className="font-black px-2">{mobileForm === 'edit' ? '📝 修改項目' : (mobileForm === 'future' ? '🚀 新增未來行程' : '✏️ 補寫日記')}</span>
+                <span className="font-black px-2">{mobileForm === 'future' ? '🚀 新增未來行程' : '✏️ 補寫日記'}</span>
                 <button 
-                  onClick={() => {
-                    setMobileForm('none');
-                    setEditingEvent(null);
-                  }}
+                  onClick={() => setMobileForm('none')}
                   className="cartoon-border bg-white w-8 h-8 rounded-full flex items-center justify-center font-black active:scale-95"
                 >
                   ✕
@@ -1341,9 +1236,6 @@ export default function App() {
                     setMobileForm('none');
                   }} 
                   clickedDate={clickedDate} 
-                  editingEvent={editingEvent}
-                  onEventUpdated={handleUpdateEvent}
-                  onCancelEdit={editingEvent ? () => { setEditingEvent(null); setMobileForm('none'); } : undefined}
                 />
               </div>
             </div>
