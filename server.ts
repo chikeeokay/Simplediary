@@ -202,35 +202,44 @@ async function startServer() {
       try {
         const icalModule = await import('node-ical');
         const ical = icalModule.default || icalModule;
-        const data = await ical.async.fromURL('https://www.1823.gov.hk/common/ical/tc.ics');
-        const govHolidays = Object.values(data)
-          .filter(ev => ev.type === 'VEVENT')
-          .map((ev: any) => ({
-            id: ev.uid,
-            summary: ev.summary,
-            start: ev.start?.dateOnly ? { date: ev.start.toISOString().split('T')[0] } : { dateTime: ev.start?.toISOString() },
-            end: ev.end?.dateOnly ? { date: ev.end.toISOString().split('T')[0] } : { dateTime: ev.end?.toISOString() },
-            isHoliday: true,
-          }))
-          // Only include holidays in the queried time range
-          .filter(ev => {
-            const dateStr = ev.start.date || ev.start.dateTime;
-            if (!dateStr) return false;
-            const d = new Date(dateStr);
-            return d >= timeMin && d <= timeMax;
-          });
-          
-        for (const ev of govHolidays) {
-          const dateStr = ev.start.date || ev.start.dateTime?.split('T')[0];
-          // Remove any Google holiday on the same date
-          hkHolidays = hkHolidays.filter(h => {
-             const hDateStr = h.start.date || h.start.dateTime?.split('T')[0];
-             return hDateStr !== dateStr;
-          });
-          hkHolidays.push(ev);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const response = await fetch('https://www.1823.gov.hk/common/ical/tc.ics', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const text = await response.text();
+          const data = await ical.async.parseICS(text);
+          const govHolidays = Object.values(data)
+            .filter((ev: any) => ev.type === 'VEVENT')
+            .map((ev: any) => ({
+              id: ev.uid,
+              summary: ev.summary,
+              start: ev.start?.dateOnly ? { date: ev.start.toISOString().split('T')[0] } : { dateTime: ev.start?.toISOString() },
+              end: ev.end?.dateOnly ? { date: ev.end.toISOString().split('T')[0] } : { dateTime: ev.end?.toISOString() },
+              isHoliday: true,
+            }))
+            // Only include holidays in the queried time range
+            .filter((ev: any) => {
+              const dateStr = ev.start.date || ev.start.dateTime;
+              if (!dateStr) return false;
+              const d = new Date(dateStr);
+              return d >= timeMin && d <= timeMax;
+            });
+            
+          for (const ev of govHolidays) {
+            const dateStr = ev.start.date || ev.start.dateTime?.split('T')[0];
+            // Remove any Google holiday on the same date
+            hkHolidays = hkHolidays.filter(h => {
+               const hDateStr = h.start.date || h.start.dateTime?.split('T')[0];
+               return hDateStr !== dateStr;
+            });
+            hkHolidays.push(ev);
+          }
         }
       } catch (err) {
-        console.error("Could not fetch 1823 HK holidays:", err);
+        console.warn("Could not fetch 1823 HK holidays (timeout/network):", err instanceof Error ? err.message : err);
       }
 
       res.json([...(primaryResponse.data.items || []), ...hkHolidays]);

@@ -91,6 +91,8 @@ function TimelineGrid({
   onDateClick?: (date: Date) => void;
   onDateDoubleClick?: (date: Date) => void;
 }) {
+  const [forceCloseDateStr, setForceCloseDateStr] = useState<string | null>(null);
+  
   return (
     <div id={containerId} className={`bg-[#fdf2f8] rounded-2xl ${isExport ? 'p-6 xl:p-8 flex flex-col' : 'p-1.5 sm:p-4 w-full'}`} style={isExport ? { 
       width: exportRatio === '16:9' ? '2400px' : '1800px', 
@@ -128,7 +130,11 @@ function TimelineGrid({
           const lunarMonth = lunar.getMonth();
           const lunarDay = lunar.getDay();
 
-          const dayEvents = (isExportBlank || hideEvents) ? rawDayEvents.filter(ev => ev.isHoliday) : rawDayEvents;
+          const dayEvents = ((isExportBlank || hideEvents) ? rawDayEvents.filter(ev => ev.isHoliday) : rawDayEvents).sort((a, b) => {
+            const timeA = a.start?.dateTime ? new Date(a.start.dateTime).getTime() : 0;
+            const timeB = b.start?.dateTime ? new Date(b.start.dateTime).getTime() : 0;
+            return timeA - timeB;
+          });
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const today = isSameDay(day, new Date());
           const isClicked = clickedDate ? isSameDay(day, clickedDate) : false;
@@ -153,7 +159,7 @@ function TimelineGrid({
             else originClass = 'origin-center';
           }
 
-          const shouldScale = isCurrentMonth && dayEvents.length > 0 && !isExport;
+          const shouldScale = isCurrentMonth && dayEvents.length > 0 && !isExport && forceCloseDateStr !== dateStr;
 
           let cellBorderClass = isCurrentMonth ? 'bg-white border-black rounded-lg' : 'bg-transparent border-gray-300 rounded-lg opacity-60';
           // 假期或星日特別框框
@@ -198,6 +204,11 @@ function TimelineGrid({
               style={{ zIndex: !isExport && isClicked ? 999 : undefined }}
               tabIndex={0}
               onClick={() => onDateClick?.(day)}
+              onMouseLeave={() => {
+                if (forceCloseDateStr === dateStr) {
+                  setForceCloseDateStr(null);
+                }
+              }}
               onDoubleClick={(e) => {
                 e.preventDefault();
                 // Disable double-click to add on mobile devices to prevent interference with click/delete
@@ -346,6 +357,23 @@ function TimelineGrid({
                     {shifts?.[dateStr] || '・'}
                   </div>
                 )}
+                {shouldScale && !isExport && (
+                  <button 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      if (isClicked) onDateClick?.(day); 
+                      setForceCloseDateStr(dateStr);
+                      // Remove focus on mobile to dismiss hover/focus state
+                      const active = document.activeElement;
+                      if (active instanceof HTMLElement) active.blur();
+                    }}
+                    className={`absolute bottom-1 left-1 sm:bottom-1.5 sm:left-1.5 bg-[#FF6B6B] hover:bg-red-500 text-white border-[1.5px] border-black rounded shadow-[2px_2px_0px_rgba(0,0,0,1)] px-2 py-[2px] z-[100] text-[10px] sm:text-xs font-black transition-transform active:scale-95 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 ${isClicked ? 'opacity-100' : ''}`}
+                    data-export-ignore="true"
+                    title="關閉放大"
+                  >
+                    ✕ 關閉
+                  </button>
+                )}
               </div>
             </div>
           )
@@ -356,13 +384,11 @@ function TimelineGrid({
 }
 
 function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' | 'future', events: CalendarEvent[], onEventAdded: (ev: CalendarEvent) => void, clickedDate?: Date | null }) {
-  const [selectedActivity, setSelectedActivity] = useState(PREDEFINED_ACTIVITIES[0]);
+  const [selectedActivity, setSelectedActivity] = useState("");
   const [customActivity, setCustomActivity] = useState("");
   const [note, setNote] = useState("");
   const [selectedDate, setSelectedDate] = useState(() => {
-    const d = new Date();
-    if (mode === 'future') d.setDate(d.getDate() + 1);
-    return format(d, "yyyy-MM-dd");
+    return format(new Date(), "yyyy-MM-dd");
   });
 
   useEffect(() => {
@@ -370,7 +396,7 @@ function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' |
       const today = new Date(new Date().setHours(0, 0, 0, 0));
       const clicked = new Date(clickedDate);
       clicked.setHours(0, 0, 0, 0);
-      const isFutureClick = clicked > today;
+      const isFutureClick = clicked >= today;
       if ((mode === 'future' && isFutureClick) || (mode === 'past' && !isFutureClick)) {
         setSelectedDate(format(clickedDate, "yyyy-MM-dd"));
       }
@@ -488,6 +514,7 @@ function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' |
             }}
             className="cartoon-input bg-white text-sm w-full"
           >
+            <option value="">請選擇常用活動...</option>
             {PREDEFINED_ACTIVITIES.map(act => (
               <option key={act} value={act}>{act}</option>
             ))}

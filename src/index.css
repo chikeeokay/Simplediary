@@ -10,6 +10,19 @@
   --color-cartoon-danger: #EF5350;
   
   --font-sans: "Nunito", "Comic Sans MS", "Chalkboard SE", "Inter", sans-serif;
+
+  --animate-fadeIn: fadeIn 0.2s ease-out 0.1s forwards;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
 body {
