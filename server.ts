@@ -272,6 +272,35 @@ async function startServer() {
     }
   });
 
+  app.put("/api/calendar/events/:eventId", async (req, res) => {
+    try {
+      const tokensStr = req.cookies.calendar_auth;
+      if (!tokensStr) return res.status(401).json({ error: "Unauthorized" });
+
+      const tokens = JSON.parse(tokensStr);
+      const client = getAuthClient(req);
+      client.setCredentials(tokens);
+
+      const calendar = google.calendar({ version: "v3", auth: client });
+      
+      const eventData = req.body;
+      const response = await calendar.events.patch({
+        calendarId: "primary",
+        eventId: req.params.eventId,
+        requestBody: eventData,
+      });
+
+      res.json(response.data);
+    } catch (error: any) {
+      console.error("Failed to update event:", error?.message || error);
+      if (error?.message?.includes("insufficient") || error?.message?.includes("scopes")) {
+        res.clearCookie("calendar_auth");
+        return res.status(403).json({ error: "授權不足，請重新登入並勾選日曆權限！" });
+      }
+      res.status(500).json({ error: error?.message || "Failed to update event" });
+    }
+  });
+
   app.delete("/api/calendar/events/:eventId", async (req, res) => {
     try {
       const tokensStr = req.cookies.calendar_auth;

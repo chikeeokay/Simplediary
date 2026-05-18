@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
-import { Calendar, Trash2, Clock, Plus, Loader2, Save, AlertTriangle, LogOut, Camera } from 'lucide-react';
+import { Calendar, Trash2, Clock, Plus, Loader2, Save, AlertTriangle, LogOut, Camera, Pencil } from 'lucide-react';
 import { format, isSameDay, parseISO, addHours, areIntervalsOverlapping, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { toBlob } from 'html-to-image';
@@ -52,6 +52,7 @@ function TimelineGrid({
   daysInMonth, 
   groupedEvents, 
   handleDelete, 
+  handleEdit,
   prevMonth, 
   nextMonth, 
   todayAtMidnight,
@@ -73,6 +74,7 @@ function TimelineGrid({
   daysInMonth: Date[];
   groupedEvents: Record<string, CalendarEvent[]>;
   handleDelete: (event: CalendarEvent) => void;
+  handleEdit?: (event: CalendarEvent) => void;
   prevMonth: () => void;
   nextMonth: () => void;
   todayAtMidnight: Date;
@@ -218,10 +220,11 @@ function TimelineGrid({
                   </div>
                   <div className={`grid min-h-0 gap-1 flex-1 content-start ${(toggleShift || shifts?.[dateStr]) ? 'pb-[32px] sm:pb-[36px]' : ''} grid-cols-1`}>
                     {dayEvents.map(event => {
+                      const isAllDay = !event.start?.dateTime && event.start?.date;
                       let timeDisplay = '';
-                      if (event.time) {
-                        const h = parseInt(event.time.split(':')[0]);
-                        const d = new Date(`2000-01-01T${event.time}`);
+                      if (!isAllDay && event.start?.dateTime) {
+                        const d = new Date(event.start.dateTime);
+                        const h = d.getHours();
                         const m = d.getMinutes();
                         const ampm = h >= 12 ? 'PM' : 'AM';
                         const hour12 = h % 12 || 12;
@@ -288,15 +291,32 @@ function TimelineGrid({
                           )}
                         </div>
                        {!event.isHoliday && !isExport && (
-                         <button
-                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(event); }}
-                           className={`absolute -top-[5px] -right-[5px] sm:-top-[5px] sm:-right-[5px] ${isClicked ? 'opacity-100 flex' : 'opacity-0 hidden sm:flex'} group-hover/event:opacity-100 bg-[#FF6B6B] text-white border-[1.5px] border-black rounded-full p-[3px] sm:p-[2px] z-30 items-center justify-center cursor-pointer`}
-                           title="刪除"
-                           style={{ touchAction: 'manipulation' }}
-                           data-export-ignore="true"
-                         >
-                           <Trash2 className="w-[14px] h-[14px] sm:w-[12px] sm:h-[12px]" />
-                         </button>
+                         <div className={`absolute -top-[5px] -right-[5px] sm:-top-[5px] sm:-right-[5px] ${isClicked ? 'opacity-100 flex' : 'opacity-0 hidden sm:flex'} group-hover/event:opacity-100 z-30 flex gap-0.5`} data-export-ignore="true">
+                           <button
+                             onClick={(e) => { 
+                               e.preventDefault(); 
+                               e.stopPropagation(); 
+                               handleEdit?.(event); 
+                             }}
+                             className={`bg-[#4FC3F7] hover:bg-blue-400 text-white border-[1.5px] border-black rounded-full p-[3px] sm:p-[2px] flex items-center justify-center cursor-pointer`}
+                             title="修改"
+                             style={{ touchAction: 'manipulation' }}
+                           >
+                             <Pencil className="w-[14px] h-[14px] sm:w-[12px] sm:h-[12px]" />
+                           </button>
+                           <button
+                             onClick={(e) => { 
+                               e.preventDefault(); 
+                               e.stopPropagation(); 
+                               handleDelete(event); 
+                             }}
+                             className={`bg-[#FF6B6B] hover:bg-red-400 text-white border-[1.5px] border-black rounded-full p-[3px] sm:p-[2px] flex items-center justify-center cursor-pointer`}
+                             title="刪除"
+                             style={{ touchAction: 'manipulation' }}
+                           >
+                             <Trash2 className="w-[14px] h-[14px] sm:w-[12px] sm:h-[12px]" />
+                           </button>
+                         </div>
                        )}
                      </div>
                    );
@@ -558,6 +578,141 @@ function DiaryForm({ mode, events, onEventAdded, clickedDate }: { mode: 'past' |
   );
 }
 
+function EditEventModal({ event, onClose, onUpdated }: { event: CalendarEvent, onClose: () => void, onUpdated: (ev: CalendarEvent) => void }) {
+  const [summary, setSummary] = useState(event.summary || "");
+  const [description, setDescription] = useState(event.description || "");
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const timeStr = event.start?.dateTime || event.start?.date;
+    return timeStr ? format(new Date(timeStr), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+  });
+  const [startHour, setStartHour] = useState(() => {
+    if (event.start?.dateTime) return new Date(event.start.dateTime).getHours();
+    return 0; // All day
+  });
+  const [endHour, setEndHour] = useState(() => {
+    if (event.end?.dateTime) return new Date(event.end.dateTime).getHours();
+    return 23; // All day
+  });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorToast, setErrorToast] = useState("");
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const isPast = selectedDate < todayStr;
+
+  const showError = (msg: string) => {
+    setErrorToast(msg);
+    setTimeout(() => setErrorToast(""), 3000);
+  };
+
+  const handleUpdate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!summary.trim()) {
+      showError("標題不能為空！");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const start = new Date(`${selectedDate}T${startHour.toString().padStart(2, '0')}:00:00`);
+      let end = new Date(`${selectedDate}T${endHour.toString().padStart(2, '0')}:00:00`);
+      if (end <= start) end = addHours(end, 24);
+
+      const eventData = {
+        summary: summary.trim(),
+        description: description.trim(),
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() },
+      };
+
+      const res = await fetch(`/api/calendar/events/${event.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventData),
+      });
+
+      if (res.ok) {
+        const updatedEvent = await res.json();
+        onUpdated(updatedEvent);
+        onClose();
+      } else {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || "API Error");
+      }
+    } catch (err: any) {
+      console.error(err);
+      showError(`❌ 修改失敗: ${err.message || "未知錯誤"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        className="cartoon-border bg-white rounded-3xl w-full max-w-sm overflow-hidden flex flex-col relative"
+      >
+        <div className="bg-[#f0f0f0] p-4 border-b border-black text-center font-black text-lg flex justify-between items-center">
+          <span>{isPast ? "修改日記" : "修改行程"}</span>
+          <button onClick={onClose} className="cartoon-border bg-white w-8 h-8 rounded-full flex items-center justify-center font-black active:scale-95">✕</button>
+        </div>
+        <form onSubmit={handleUpdate} className="p-4 space-y-3">
+          {errorToast && <div className="text-red-500 font-bold mb-2 text-center text-sm">{errorToast}</div>}
+          
+          <div>
+            <label className="block font-bold mb-0.5 text-sm">標題</label>
+            <input type="text" value={summary} onChange={e => setSummary(e.target.value)} className="cartoon-input w-full bg-white text-sm" />
+          </div>
+
+          <div>
+            <label className="block font-bold mb-0.5 text-sm">日期</label>
+            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="cartoon-input w-full bg-white text-sm" />
+          </div>
+
+          <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+            <select
+              value={startHour}
+              onChange={e => setStartHour(Number(e.target.value))}
+              className="cartoon-input bg-white text-center text-sm w-full"
+            >
+              {Array.from({ length: 24 }).map((_, i) => (
+                <option key={i} value={i}>{i === 0 ? '12AM' : i === 12 ? '12PM' : i > 12 ? `${i - 12}PM` : `${i}AM`}</option>
+              ))}
+            </select>
+            <span className="font-bold text-gray-500">至</span>
+            <select
+              value={endHour}
+              onChange={e => setEndHour(Number(e.target.value))}
+              className="cartoon-input bg-white text-center text-sm w-full"
+            >
+              {Array.from({ length: 24 }).map((_, i) => (
+                <option key={i} value={i}>{i === 0 ? '12AM' : i === 12 ? '12PM' : i > 12 ? `${i - 12}PM` : `${i}AM`}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-bold mb-0.5 text-sm">備註</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} className="cartoon-input w-full bg-white text-sm min-h-[60px]" />
+          </div>
+
+          <button type="submit" disabled={isSubmitting} className={`cartoon-border w-full text-white font-black py-2.5 flex justify-center items-center gap-1.5 disabled:opacity-70 mt-2 ${isPast ? 'bg-[#FF6B6B] hover:bg-red-500' : 'bg-blue-400 hover:bg-blue-500'}`}>
+            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} 修改
+          </button>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -571,6 +726,7 @@ export default function App() {
   const [clickedDate, setClickedDate] = useState<Date | null>(null);
 
   const [mobileForm, setMobileForm] = useState<'none' | 'past' | 'future'>('none');
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
   const [hideStemBranch, setHideStemBranch] = useState(() => {
     return localStorage.getItem('diary_hide_stem_branch') === 'true';
@@ -1082,6 +1238,10 @@ export default function App() {
           daysInMonth={daysInMonth}
           groupedEvents={groupedEvents}
           handleDelete={handleDelete}
+          handleEdit={(event) => {
+            setEditingEvent(event);
+            setClickedDate(null);
+          }}
           prevMonth={prevMonth}
           nextMonth={nextMonth}
           todayAtMidnight={todayAtMidnight}
@@ -1317,6 +1477,19 @@ export default function App() {
       )}
     </AnimatePresence>
 
+    <AnimatePresence>
+      {editingEvent && (
+        <EditEventModal
+          event={editingEvent}
+          onClose={() => setEditingEvent(null)}
+          onUpdated={(updatedEvent) => {
+            setEvents(prev => prev.map(ev => ev.id === updatedEvent.id ? updatedEvent : ev));
+            showError("✅ 修改成功！", 3000);
+          }}
+        />
+      )}
+    </AnimatePresence>
+
     {/* Hidden export container rendered natively at 1800px width so html-to-image captures proper grid layout without jumping */}
     <div style={{ position: 'absolute', top: '-10000px', left: '-10000px', pointerEvents: 'none' }}>
       <TimelineGrid
@@ -1325,6 +1498,7 @@ export default function App() {
         daysInMonth={daysInMonth}
         groupedEvents={groupedEvents}
         handleDelete={handleDelete}
+        handleEdit={() => {}}
         prevMonth={prevMonth}
         nextMonth={nextMonth}
         todayAtMidnight={todayAtMidnight}
